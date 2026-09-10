@@ -52,8 +52,7 @@ ctl.ball.show()
 app.processEvents()
 ctl.ball.grab().save(str(OUT / "ball.png"))
 
-# 设置面板
-ctl.panel.set_scores(ctl.scores, score.id)
+# 设置面板（曲目列表 v0.14 起已迁到左侧边栏，见 preview_sidebar.py）
 ctl.panel.show()
 app.processEvents()
 ctl.panel.grab().save(str(OUT / "panel.png"))

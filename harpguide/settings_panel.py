@@ -1,34 +1,25 @@
 # -*- coding: utf-8 -*-
-"""设置面板：浮窗右侧滑出，深色面板 + 滑块 / 开关 / 曲目列表。
+"""设置面板：浮窗右侧滑出，深色面板 + 滑块 / 开关。
 
 v0.6 起内容变多，改为可滚动布局，并新增：
 - A-B 段落循环控制（状态显示 / 快捷设点 / 精确拍数输入）
 - 高级项：预备拍数、长按预亮提前量、预警开关、拍线、流光、下落速度
-- 曲目右键菜单：在编辑器中编辑 / 重命名 / 删除
 - 热键冲突告警条
+
+v0.14：曲目列表迁出到浮窗左侧的 ScoreSidebar（悬停展开的抽屉），
+本面板只保留一行指路说明，面板本身更聚焦于参数调节。
 """
 from __future__ import annotations
 
 from typing import List, Optional
 
-from PySide6.QtCore import QPoint, Qt, Signal
-from PySide6.QtGui import QAction
-from PySide6.QtWidgets import (QCheckBox, QDialog, QDoubleSpinBox, QFrame, QHBoxLayout,
-                               QInputDialog, QLabel, QMenu, QMessageBox,
-                               QPushButton, QScrollArea, QSlider, QVBoxLayout,
-                               QWidget)
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (QCheckBox, QDoubleSpinBox, QFrame, QHBoxLayout,
+                               QLabel, QPushButton, QScrollArea, QSlider,
+                               QVBoxLayout, QWidget)
 
 from .config import Settings
-from .models import Score
 from .theme import THEME
-
-
-def _exec_topmost(dialog: QWidget) -> int:
-    """把模态对话框置顶后 exec，防止被游戏等全屏窗口压在后面。"""
-    dialog.setWindowFlags(dialog.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
-    dialog.raise_()
-    dialog.activateWindow()
-    return dialog.exec()
 
 
 def _slider() -> QSlider:
@@ -84,7 +75,6 @@ class SettingsPanel(QWidget):
     waterfall_height_changed = Signal(int)
     loop_changed = Signal(bool)
     click_through_changed = Signal(bool)
-    score_selected = Signal(str)          # score_id
     count_in_changed = Signal(int)
     preparation_lead_changed = Signal(float)
     countdown_warning_changed = Signal(bool)
@@ -98,9 +88,6 @@ class SettingsPanel(QWidget):
     judge_offset_changed = Signal(int)
     loop_range_set = Signal(float, float)  # A 拍, B 拍
     loop_range_cleared = Signal()
-    score_renamed = Signal(str, str)       # score_id, new_name
-    score_deleted = Signal(str)            # score_id
-    edit_requested = Signal(str)           # 在编辑器中打开该曲目
 
     PANEL_W = 340
     PANEL_H = 660
@@ -108,7 +95,6 @@ class SettingsPanel(QWidget):
     def __init__(self, settings: Settings, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self._settings = settings
-        self._current_id = ""
         self.setWindowTitle("ManboHakimi-Harp 设置")
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint
@@ -134,13 +120,6 @@ class SettingsPanel(QWidget):
                 font-family: '{THEME.font_mono}'; background: transparent; }}
             QLabel#warn {{ color: {THEME.background}; font-size: 11px;
                 background: {THEME.secondary}; border-radius: 6px; padding: 6px 8px; }}
-            QPushButton#scorebtn {{
-                text-align: left; color: {THEME.text_primary};
-                background: {THEME.surface_alt}; border: none;
-                border-radius: 8px; padding: 8px 10px; }}
-            QPushButton#scorebtn:hover {{ background: {THEME.border}; }}
-            QPushButton#scorebtn:checked {{
-                background: rgba(0,229,255,26); border-left: 2px solid {THEME.primary}; }}
             QPushButton#close {{ color: {THEME.text_secondary}; background: transparent;
                 border: none; font-size: 16px; }}
             QPushButton#close:hover {{ color: {THEME.text_primary}; }}
@@ -194,14 +173,14 @@ class SettingsPanel(QWidget):
         scroll.setWidget(content)
         outer.addWidget(scroll, 1)
 
-        # ---------- 曲目 ----------
+        # ---------- 曲目（已移到左侧抽屉） ----------
         lay.addWidget(QLabel("曲目", objectName="sec"))
-        self._score_area = QVBoxLayout()
-        self._score_area.setSpacing(4)
-        lay.addLayout(self._score_area)
-        self._score_buttons: List[QPushButton] = []
-        self._score_hint = QLabel("右键曲目可编辑 / 重命名 / 删除", objectName="hint")
-        lay.addWidget(self._score_hint)
+        hint_scores = QLabel(
+            "曲目列表已移到浮窗左侧边栏：把鼠标移到窗口左边缘的竖条「曲目」上\n"
+            "会自动展开，移开自动缩回。在侧边栏里右键曲目可编辑 / 重命名 / 删除。",
+            objectName="hint")
+        hint_scores.setWordWrap(True)
+        lay.addWidget(hint_scores)
 
         lay.addWidget(self._sep())
 
@@ -506,60 +485,6 @@ class SettingsPanel(QWidget):
         self.height_slider.setValue(value)
         self.height_label.setText(f"{value}px")
         self.height_slider.blockSignals(False)
-
-    # ---- 曲目列表 ----
-    def set_scores(self, scores: List[Score], current_id: str) -> None:
-        for btn in self._score_buttons:
-            btn.deleteLater()
-        self._score_buttons.clear()
-        self._current_id = current_id
-        for s in scores:
-            btn = QPushButton(f"{s.name}    BPM {s.bpm:g}")
-            btn.setObjectName("scorebtn")
-            btn.setCheckable(True)
-            btn.setChecked(s.id == current_id)
-            btn.setFixedHeight(36)
-            btn.clicked.connect(lambda _=False, sid=s.id: self.score_selected.emit(sid))
-            btn.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-            btn.customContextMenuRequested.connect(
-                lambda pos, sid=s.id, name=s.name, b=btn: self._score_menu(pos, sid, name, b))
-            self._score_area.addWidget(btn)
-            self._score_buttons.append(btn)
-
-    def _score_menu(self, pos: QPoint, score_id: str, name: str, btn: QPushButton) -> None:
-        menu = QMenu(self)
-        act_edit = QAction("在编辑器中编辑", menu)
-        act_rename = QAction("重命名…", menu)
-        act_delete = QAction("删除（仅用户曲目）", menu)
-        act_edit.triggered.connect(lambda: self.edit_requested.emit(score_id))
-        act_rename.triggered.connect(lambda: self._rename_dialog(score_id, name))
-        act_delete.triggered.connect(lambda: self._delete_confirm(score_id, name))
-        menu.addAction(act_edit)
-        menu.addAction(act_rename)
-        menu.addSeparator()
-        menu.addAction(act_delete)
-        menu.exec(btn.mapToGlobal(pos))
-
-    def _rename_dialog(self, score_id: str, old_name: str) -> None:
-        dlg = QInputDialog(self)
-        dlg.setWindowTitle("重命名曲目")
-        dlg.setLabelText("新的曲名：")
-        dlg.setTextValue(old_name)
-        if _exec_topmost(dlg) == QDialog.DialogCode.Accepted:
-            new_name = dlg.textValue()
-            if new_name.strip() and new_name.strip() != old_name:
-                self.score_renamed.emit(score_id, new_name.strip())
-
-    def _delete_confirm(self, score_id: str, name: str) -> None:
-        msg = QMessageBox(self)
-        msg.setWindowTitle("删除曲目")
-        msg.setText(f"确定删除《{name}》吗？")
-        msg.setInformativeText("只删除用户曲目目录 scores/ 下的文件，内置曲目不受影响，此操作不可撤销。")
-        msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        msg.setDefaultButton(QMessageBox.StandardButton.No)
-        msg.setIcon(QMessageBox.Icon.Question)
-        if _exec_topmost(msg) == QMessageBox.StandardButton.Yes:
-            self.score_deleted.emit(score_id)
 
     def move_beside(self, overlay_pos) -> None:
         self.move(overlay_pos.x() + 600 + 12, overlay_pos.y())

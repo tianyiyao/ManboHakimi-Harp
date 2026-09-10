@@ -79,7 +79,7 @@ def _selftest(controller) -> int:
     from harpguide.config import _LEGACY_APP_NAME, _migrate_legacy_dir, data_dir
     assert APP_NAME == "ManboHakimi-Harp", APP_NAME
     assert _LEGACY_APP_NAME == "HarpGuide"
-    assert __version__.startswith("0.13"), __version__
+    assert __version__.startswith("0.14"), __version__
     assert data_dir().is_dir()                     # 数据目录可创建/可写
     # 旧 %APPDATA%/HarpGuide 的数据应能被搬到新目录，且不覆盖新目录里已有的文件
     _mroot = Path(tempfile.mkdtemp())
@@ -555,6 +555,52 @@ def _selftest(controller) -> int:
     assert controller.settings.show_hotkeys and not bar.isHidden()
     assert len(HOTKEY_HINTS) >= 10
     print("[OK] 底部热键提示条（开关 / 自适应换行）")
+
+    # 11a2) 曲目侧边栏：悬停展开的抽屉，取代设置面板里的曲目列表
+    sb = controller.overlay.sidebar
+    assert sb.parent() is controller.overlay      # 必须是子部件，才能被父窗口裁剪出"滑出"效果
+    assert sb.HANDLE_W < sb.PANEL_W
+    # 收起态：只剩把手，纵向范围由浮窗注入（不遮顶栏拖动区）
+    sb.set_span(56, 300)
+    assert (sb.x(), sb.y(), sb.width(), sb.height()) == (0, 56, sb.HANDLE_W, 300)
+    assert not sb.expanded
+    # 展开 / 收起：离屏无事件循环，手动把动画推到终点再断言宽度
+    sb.expand()
+    assert sb.expanded and sb._anim.endValue().width() == sb.PANEL_W
+    sb._anim.setCurrentTime(sb._anim.duration())
+    assert sb.width() == sb.PANEL_W
+    assert sb._body.width() > 0 and sb._body.x() == sb.HANDLE_W
+    sb.collapse()
+    assert not sb.expanded and sb._anim.endValue().width() == sb.HANDLE_W
+    sb._anim.setCurrentTime(sb._anim.duration())
+    assert sb.width() == sb.HANDLE_W
+    # 曲目列表：数量 / 选中态跟随当前曲目
+    sb.set_scores(controller.scores, controller.scores[0].id)
+    total = len(controller.scores)
+    assert len(sb._score_buttons) == total and total > 0
+    assert len(sb._scores) == total          # 把手上的计数从这份缓存来
+    assert sb.count_label.text() == f"{total} 首"
+    assert sb._score_buttons[0].isChecked()
+    # 点第二首 -> 真的换曲，列表选中态跟着走（换曲会重建按钮，取新列表断言）
+    _last_id = controller.settings.last_score_id
+    sb._score_buttons[1].click()
+    assert controller.engine.score.id == controller.scores[1].id
+    assert sb._score_buttons[1].isChecked() and not sb._score_buttons[0].isChecked()
+    # 选完自动收回（鼠标还按在按钮上，也要收）
+    sb._maybe_collapse()
+    assert not sb.expanded
+    controller.settings.last_score_id = _last_id
+    # 鼠标穿透 / 校准时整体撤下：穿透态收不到鼠标事件，留着会让人以为卡住
+    controller.overlay.set_sidebar_enabled(False)
+    assert sb.isHidden()
+    controller.overlay.set_sidebar_enabled(True)
+    assert not sb.isHidden()
+    # 曲目列表已迁出设置面板
+    assert not hasattr(panel, "set_scores")
+    shot = sb.grab()
+    assert not shot.isNull() and shot.width() >= sb.HANDLE_W - 1
+    print("[OK] 曲目侧边栏（悬停展开 / 缩进保留把手 / 列表迁出设置面板）")
+
     # 三个辅助窗口都能渲染（面板改可滚动布局后的回归保护）
     for w in (panel, controller.cal_panel, ed):
         shot = w.grab()

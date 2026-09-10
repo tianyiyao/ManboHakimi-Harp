@@ -116,13 +116,17 @@ class AppController(QObject):
         self.editor.preview_requested.connect(self._on_editor_preview)
 
         self.panel = SettingsPanel(self.settings)
-        self.panel.set_scores(self.scores, score.id)
+        self.overlay.sidebar.set_scores(self.scores, score.id)
+        # 曲目侧边栏（左侧悬停抽屉）接管原设置面板里的曲目列表
+        self.overlay.sidebar.score_selected.connect(self._select_score)
+        self.overlay.sidebar.score_renamed.connect(self._rename_score)
+        self.overlay.sidebar.score_deleted.connect(self._delete_score)
+        self.overlay.sidebar.edit_requested.connect(self._open_score_in_editor)
         self.panel.speed_changed.connect(self._set_speed)
         self.panel.opacity_changed.connect(self._set_opacity)
         self.panel.waterfall_height_changed.connect(self._set_waterfall_height)
         self.panel.loop_changed.connect(self._set_loop)
         self.panel.click_through_changed.connect(self.overlay.set_click_through)
-        self.panel.score_selected.connect(self._select_score)
         self.panel.count_in_changed.connect(self._set_count_in)
         self.panel.preparation_lead_changed.connect(self._set_preparation_lead)
         self.panel.countdown_warning_changed.connect(self._set_countdown_warning)
@@ -131,8 +135,6 @@ class AppController(QObject):
         self.panel.lookahead_changed.connect(self._set_lookahead)
         self.panel.loop_range_set.connect(self._panel_set_loop_range)
         self.panel.loop_range_cleared.connect(self._clear_loop_range)
-        self.panel.score_renamed.connect(self._rename_score)
-        self.panel.score_deleted.connect(self._delete_score)
         self.panel.lyrics_changed.connect(self._set_show_lyrics)
         self.panel.hotkeys_hint_changed.connect(self._set_hotkeys_hint)
         self.panel.auto_transpose_changed.connect(self._set_auto_transpose)
@@ -232,7 +234,7 @@ class AppController(QObject):
         self._reset_feedback(self.engine.position_ms())
         self.overlay.set_loop_range(None, None)
         self._restore_loop_range(score)
-        self.panel.set_scores(self.scores, score_id)
+        self.overlay.sidebar.set_scores(self.scores, score_id)
         self.panel.set_loop_status(*self._loop_status())
 
     # ---- 设置项 ----
@@ -767,6 +769,8 @@ class AppController(QObject):
         self.overlay.waterfall.set_calibration_preview(True)
         self.overlay.keys.set_calibrating(True)
         self.panel.hide()
+        # 校准时琴键要拖到左边缘，抽屉会挡住第一键，先撤下
+        self.overlay.set_sidebar_enabled(False)
         self.cal_panel.move_beside(self.overlay.pos())
         self.cal_panel.show()
         print("[Calibration] 进入校准模式")
@@ -776,6 +780,7 @@ class AppController(QObject):
         self.overlay.keys.set_calibrating(False)
         self.overlay.waterfall.set_calibration_preview(False)
         self.cal_panel.hide()
+        self.overlay.set_sidebar_enabled(not self.overlay.click_through)
         # 恢复鼠标穿透
         if self._cal_was_clickthrough:
             self.overlay.set_click_through(True)

@@ -22,6 +22,7 @@ from .hintbar import HotkeyBar
 from .keys import KeyHintWidget
 from .lyrics import LyricWidget
 from .models import Score
+from .sidebar import ScoreSidebar
 from .theme import THEME
 from .waterfall import WaterfallWidget
 
@@ -344,6 +345,12 @@ class OverlayWindow(QWidget):
         self._resize_from_settings()
         self._apply_lyrics_visibility()
         self.hotkeybar.refresh_height()
+
+        # 左侧曲目抽屉：浮窗的子部件，靠父窗口裁剪实现滑出 / 缩进
+        self.sidebar = ScoreSidebar(settings, self)
+        self.sidebar.raise_()
+        self._sync_sidebar_span()
+
         self._ensure_on_screen()
 
         # resize 尺寸防抖保存
@@ -492,12 +499,39 @@ class OverlayWindow(QWidget):
         self._update_minimum_size()
         self._resize_from_settings()
 
+    # ---- 曲目抽屉 ----
+    def _sync_sidebar_span(self) -> None:
+        """抽屉纵向范围：顶栏下沿 ~ 底部热键提示条上沿。
+
+        两头都避开：上面不挡拖动条，下面不挡常驻的热键键帽说明。
+        """
+        if not hasattr(self, "sidebar"):
+            return
+        top = self.MARGIN_TOP + self.TOPBAR_H + self.SPACING
+        bottom = self.height() - self.MARGIN_BOTTOM
+        bar_h = self._hotkey_bar_height()
+        if bar_h > 0:
+            bottom -= bar_h + self.SPACING
+        self.sidebar.set_span(top, bottom - top)
+
+    def set_sidebar_enabled(self, enable: bool) -> None:
+        """鼠标穿透 / 校准等场景下临时收起并隐藏抽屉。"""
+        if not hasattr(self, "sidebar"):
+            return
+        if enable:
+            self.sidebar.show()
+            self._sync_sidebar_span()
+        else:
+            self.sidebar.collapse()
+            self.sidebar.hide()
+
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
         old_w = self._settings.window_w
         # 宽度变化可能让底部热键提示条换行，先按新宽度重算其高度
         self.hotkeybar.refresh_height()
         self._apply_waterfall_height()
+        self._sync_sidebar_span()
         self._settings.window_w = self.width()
         self._settings.window_h = self.height()
         # 宽度变化时按比例缩放已校准的琴键几何，保持相对对齐
@@ -577,6 +611,12 @@ class OverlayWindow(QWidget):
         elif right:
             hit = HTRIGHT
         if hit != HTCLIENT:
+            # 左侧抽屉的把手就贴在窗口最左缘，如果让给 resize 判定，
+            # 鼠标会被当成"在边框上"而收不到 enterEvent，抽屉永远展不开。
+            # 所以抽屉覆盖到的区域优先让给抽屉。
+            if hasattr(self, "sidebar") and self.sidebar.isVisible():
+                if self.sidebar.geometry().contains(self.mapFromGlobal(QPoint(x, y))):
+                    return False, 0
             return True, hit
         return False, 0
 
@@ -590,6 +630,8 @@ class OverlayWindow(QWidget):
         """鼠标穿透：WS_EX_TRANSPARENT，鼠标事件全部穿透到游戏。"""
         self._click_through = enable
         self._settings.click_through = enable
+        # 穿透态下窗口收不到任何鼠标事件，抽屉无法悬停展开，先收起来免得误以为卡住
+        self.set_sidebar_enabled(not enable)
         try:
             hwnd = int(self.winId())
             user32 = ctypes.windll.user32
