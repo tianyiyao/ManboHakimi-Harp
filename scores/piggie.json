@@ -1,0 +1,185 @@
+{
+  "version": "2.1",
+  "id": "piggie",
+  "name": "猪猪侠（动画主题曲·简化版）",
+  "bpm": 132,
+  "timeSignature": "4/4",
+  "keyMap": [
+    "Z",
+    "X",
+    "C",
+    "V",
+    "B",
+    "N",
+    "M",
+    ","
+  ],
+  "notes": [
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 0.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 1.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 2.0
+    },
+    {
+      "key": ",",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 3.0
+    },
+    {
+      "key": ",",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 4.0
+    },
+    {
+      "key": "M",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 6.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 7.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 8.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 9.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 10.0
+    },
+    {
+      "key": ",",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 11.0
+    },
+    {
+      "key": ",",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 12.0
+    },
+    {
+      "key": "M",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 14.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 15.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 16.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 17.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 18.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 19.0
+    },
+    {
+      "key": ",",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 20.0
+    },
+    {
+      "key": "M",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 22.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 23.0
+    },
+    {
+      "key": "B",
+      "type": "hold",
+      "duration": 4.0,
+      "beat": 24.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 28.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 28.5
+    },
+    {
+      "key": ",",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 29.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 29.5
+    }
+  ],
+  "lyrics": [
+    {
+      "time": 0.0,
+      "text": "猪猪侠，猪猪侠，我们的英雄"
+    },
+    {
+      "time": 7272.727272727273,
+      "text": "勇敢机智，团结友爱，向前冲"
+    }
+  ]
+}

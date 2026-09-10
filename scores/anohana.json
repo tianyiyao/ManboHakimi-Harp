@@ -1,0 +1,231 @@
+{
+  "version": "2.1",
+  "id": "anohana",
+  "name": "未闻花名（secret base·中文版简化版）",
+  "bpm": 84,
+  "timeSignature": "4/4",
+  "keyMap": [
+    "Z",
+    "X",
+    "C",
+    "V",
+    "B",
+    "N",
+    "M",
+    ","
+  ],
+  "notes": [
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 0.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 1.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 2.0
+    },
+    {
+      "key": ",",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 3.0
+    },
+    {
+      "key": "N",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 4.0
+    },
+    {
+      "key": "B",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 6.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 8.0
+    },
+    {
+      "key": "V",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 9.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 10.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 11.0
+    },
+    {
+      "key": "B",
+      "type": "hold",
+      "duration": 4.0,
+      "beat": 12.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 16.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 17.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 18.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 19.0
+    },
+    {
+      "key": "N",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 20.0
+    },
+    {
+      "key": "B",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 22.0
+    },
+    {
+      "key": ",",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 24.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 25.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 26.0
+    },
+    {
+      "key": "V",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 27.0
+    },
+    {
+      "key": "C",
+      "type": "hold",
+      "duration": 4.0,
+      "beat": 28.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 32.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 33.0
+    },
+    {
+      "key": "C",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 34.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 36.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 37.0
+    },
+    {
+      "key": ",",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 38.0
+    },
+    {
+      "key": "N",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 39.0
+    },
+    {
+      "key": "B",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 41.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 43.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 44.0
+    },
+    {
+      "key": "Z",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 45.0
+    }
+  ],
+  "lyrics": [
+    {
+      "time": 0.0,
+      "text": "与你在夏末的约定，一直在我心里"
+    },
+    {
+      "time": 11428.57142857143,
+      "text": "我相信，我们一定还能再相见"
+    },
+    {
+      "time": 22857.14285714286,
+      "text": "想给你，这张纪念照，永远的笑容"
+    }
+  ]
+}

@@ -1,0 +1,237 @@
+{
+  "version": "2.1",
+  "id": "loner",
+  "name": "孤勇者（陈奕迅·简化版）",
+  "bpm": 92,
+  "timeSignature": "4/4",
+  "keyMap": [
+    "Z",
+    "X",
+    "C",
+    "V",
+    "B",
+    "N",
+    "M",
+    ","
+  ],
+  "notes": [
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 0.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 1.0
+    },
+    {
+      "key": "C",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 2.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 4.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 5.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 6.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 7.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 8.0
+    },
+    {
+      "key": "X",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 9.0
+    },
+    {
+      "key": "Z",
+      "type": "hold",
+      "duration": 4.0,
+      "beat": 11.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 15.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 16.0
+    },
+    {
+      "key": "C",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 17.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 19.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 20.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 21.0
+    },
+    {
+      "key": "Z",
+      "type": "hold",
+      "duration": 4.0,
+      "beat": 22.0
+    },
+    {
+      "key": "C",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 26.0
+    },
+    {
+      "key": "B",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 28.0
+    },
+    {
+      "key": "N",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 30.0
+    },
+    {
+      "key": "B",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 32.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 34.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 35.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 36.0
+    },
+    {
+      "key": "N",
+      "type": "hold",
+      "duration": 4.0,
+      "beat": 37.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 41.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 42.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 43.0
+    },
+    {
+      "key": "N",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 44.0
+    },
+    {
+      "key": "B",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 46.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 48.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 49.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 50.0
+    },
+    {
+      "key": "Z",
+      "type": "hold",
+      "duration": 4.0,
+      "beat": 51.0
+    }
+  ],
+  "lyrics": [
+    {
+      "time": 0.0,
+      "text": "爱你孤身走暗巷，爱你不跪的模样"
+    },
+    {
+      "time": 9782.608695652174,
+      "text": "爱你对峙过绝望，不肯哭一场"
+    },
+    {
+      "time": 16956.521739130436,
+      "text": "谁说站在光里的才算英雄"
+    }
+  ]
+}

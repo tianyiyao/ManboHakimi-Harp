@@ -1,0 +1,329 @@
+{
+  "version": "2.1",
+  "id": "jingle_bells",
+  "name": "铃儿响叮当",
+  "bpm": 112,
+  "timeSignature": "4/4",
+  "keyMap": [
+    "Z",
+    "X",
+    "C",
+    "V",
+    "B",
+    "N",
+    "M",
+    ","
+  ],
+  "notes": [
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 0.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 1.0
+    },
+    {
+      "key": "Z",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 2.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 4.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 5.0
+    },
+    {
+      "key": "Z",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 6.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 8.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 8.5
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 9.0
+    },
+    {
+      "key": "M",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 9.5
+    },
+    {
+      "key": ",",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 10.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 12.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 13.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 14.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 15.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 16.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 17.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 18.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 19.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 20.0
+    },
+    {
+      "key": "M",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 21.0
+    },
+    {
+      "key": "M",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 22.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 23.0
+    },
+    {
+      "key": "M",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 24.0
+    },
+    {
+      "key": "C",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 26.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 28.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 29.0
+    },
+    {
+      "key": "Z",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 30.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 32.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 33.0
+    },
+    {
+      "key": "Z",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 34.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 36.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 36.5
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 37.0
+    },
+    {
+      "key": "M",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 37.5
+    },
+    {
+      "key": ",",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 38.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 40.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 41.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 42.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 43.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 44.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 45.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 46.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 47.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 48.0
+    },
+    {
+      "key": "M",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 48.5
+    },
+    {
+      "key": "M",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 49.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 49.5
+    },
+    {
+      "key": "M",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 50.0
+    },
+    {
+      "key": "Z",
+      "type": "hold",
+      "duration": 4.0,
+      "beat": 52.0
+    }
+  ],
+  "lyrics": [
+    {
+      "time": 0.0,
+      "text": "叮叮当，叮叮当，铃儿响叮当"
+    },
+    {
+      "time": 5357.142857142857,
+      "text": "我们滑雪多快乐，坐在雪橇上"
+    }
+  ]
+}

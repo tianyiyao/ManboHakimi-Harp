@@ -1,0 +1,225 @@
+{
+  "version": "2.1",
+  "id": "two_tigers",
+  "name": "两只老虎",
+  "bpm": 92,
+  "timeSignature": "4/4",
+  "keyMap": [
+    "Z",
+    "X",
+    "C",
+    "V",
+    "B",
+    "N",
+    "M",
+    ","
+  ],
+  "notes": [
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 0.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 1.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 2.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 3.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 4.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 5.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 6.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 7.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 8.0
+    },
+    {
+      "key": "V",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 9.0
+    },
+    {
+      "key": "B",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 10.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 12.0
+    },
+    {
+      "key": "V",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 13.0
+    },
+    {
+      "key": "B",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 14.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 16.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 16.5
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 17.0
+    },
+    {
+      "key": "V",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 17.5
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 18.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 19.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 20.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 20.5
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 21.0
+    },
+    {
+      "key": "V",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 21.5
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 22.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 23.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 24.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 25.0
+    },
+    {
+      "key": "Z",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 26.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 28.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 29.0
+    },
+    {
+      "key": "Z",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 30.0
+    }
+  ],
+  "lyrics": [
+    {
+      "time": 0.0,
+      "text": "两只老虎，两只老虎，跑得快，跑得快"
+    },
+    {
+      "time": 10434.782608695652,
+      "text": "一只没有眼睛，一只没有尾巴"
+    },
+    {
+      "time": 15652.173913043478,
+      "text": "真奇怪，真奇怪"
+    }
+  ]
+}

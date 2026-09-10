@@ -1,0 +1,187 @@
+{
+  "version": "2.1",
+  "id": "happy_birthday",
+  "name": "生日快乐（移调版）",
+  "bpm": 100,
+  "timeSignature": "4/4",
+  "keyMap": [
+    "Z",
+    "X",
+    "C",
+    "V",
+    "B",
+    "N",
+    "M",
+    ","
+  ],
+  "notes": [
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 0.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 0.5
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 1.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 2.0
+    },
+    {
+      "key": "V",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 3.0
+    },
+    {
+      "key": "C",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 4.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 6.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 6.5
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 7.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 8.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 9.0
+    },
+    {
+      "key": "V",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 10.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 12.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 12.5
+    },
+    {
+      "key": ",",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 13.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 14.0
+    },
+    {
+      "key": "V",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 15.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 16.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 17.0
+    },
+    {
+      "key": "M",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 18.0
+    },
+    {
+      "key": "M",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 18.5
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 19.0
+    },
+    {
+      "key": "V",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 20.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 21.0
+    },
+    {
+      "key": "V",
+      "type": "hold",
+      "duration": 4.0,
+      "beat": 22.0
+    }
+  ],
+  "lyrics": [
+    {
+      "time": 0.0,
+      "text": "祝你生日快乐"
+    },
+    {
+      "time": 4200.0,
+      "text": "祝你生日快乐"
+    },
+    {
+      "time": 9600.0,
+      "text": "祝你生日快乐"
+    },
+    {
+      "time": 15600.0,
+      "text": "祝你生日快乐"
+    }
+  ]
+}

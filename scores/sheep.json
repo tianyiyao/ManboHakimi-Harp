@@ -1,0 +1,179 @@
+{
+  "version": "2.1",
+  "id": "sheep",
+  "name": "别看我只是一只羊（喜羊羊·简化版）",
+  "bpm": 96,
+  "timeSignature": "4/4",
+  "keyMap": [
+    "Z",
+    "X",
+    "C",
+    "V",
+    "B",
+    "N",
+    "M",
+    ","
+  ],
+  "notes": [
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 0.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 1.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 2.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 3.0
+    },
+    {
+      "key": "B",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 4.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 6.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 7.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 8.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 9.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 10.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 11.0
+    },
+    {
+      "key": "B",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 12.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 14.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 15.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 16.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 17.0
+    },
+    {
+      "key": "B",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 18.0
+    },
+    {
+      "key": ",",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 20.0
+    },
+    {
+      "key": "M",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 21.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 22.0
+    },
+    {
+      "key": "B",
+      "type": "hold",
+      "duration": 4.0,
+      "beat": 23.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 27.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 27.5
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 28.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 28.5
+    }
+  ],
+  "lyrics": [
+    {
+      "time": 0.0,
+      "text": "别看我只是一只羊，绿草也因我变得更香"
+    },
+    {
+      "time": 10000.0,
+      "text": "天空因为我变得更蓝，白云因为我变得柔软"
+    }
+  ]
+}

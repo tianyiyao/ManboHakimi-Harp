@@ -1,0 +1,285 @@
+{
+  "version": "2.1",
+  "id": "twinkle",
+  "name": "小星星",
+  "bpm": 90,
+  "timeSignature": "4/4",
+  "keyMap": [
+    "Z",
+    "X",
+    "C",
+    "V",
+    "B",
+    "N",
+    "M",
+    ","
+  ],
+  "notes": [
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 0.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 1.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 2.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 3.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 4.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 5.0
+    },
+    {
+      "key": "B",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 6.0
+    },
+    {
+      "key": "V",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 8.0
+    },
+    {
+      "key": "V",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 9.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 10.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 11.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 12.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 13.0
+    },
+    {
+      "key": "Z",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 14.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 16.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 17.0
+    },
+    {
+      "key": "V",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 18.0
+    },
+    {
+      "key": "V",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 19.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 20.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 21.0
+    },
+    {
+      "key": "X",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 22.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 24.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 25.0
+    },
+    {
+      "key": "V",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 26.0
+    },
+    {
+      "key": "V",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 27.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 28.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 29.0
+    },
+    {
+      "key": "X",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 30.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 32.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 33.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 34.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 35.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 36.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 37.0
+    },
+    {
+      "key": "B",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 38.0
+    },
+    {
+      "key": "V",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 40.0
+    },
+    {
+      "key": "V",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 41.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 42.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 43.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 44.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 45.0
+    },
+    {
+      "key": "Z",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 46.0
+    }
+  ],
+  "lyrics": [
+    {
+      "time": 0.0,
+      "text": "一闪一闪亮晶晶，满天都是小星星"
+    },
+    {
+      "time": 10666.666666666666,
+      "text": "挂在天上放光明，好像许多小眼睛"
+    },
+    {
+      "time": 21333.333333333332,
+      "text": "一闪一闪亮晶晶，满天都是小星星"
+    }
+  ]
+}

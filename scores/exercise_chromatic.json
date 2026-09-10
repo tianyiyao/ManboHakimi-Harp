@@ -1,0 +1,186 @@
+{
+  "version": "2.1",
+  "id": "exercise_chromatic",
+  "name": "练习·半音阶上下行",
+  "bpm": 80,
+  "timeSignature": "4/4",
+  "keyMap": [
+    "Z",
+    "X",
+    "C",
+    "V",
+    "B",
+    "N",
+    "M",
+    ","
+  ],
+  "notes": [
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 0.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 1.0,
+      "accidental": 1
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 2.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 3.0,
+      "accidental": 1
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 4.0
+    },
+    {
+      "key": "V",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 5.0
+    },
+    {
+      "key": "V",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 6.0,
+      "accidental": 1
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 7.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 8.0,
+      "accidental": 1
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 9.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 10.0,
+      "accidental": 1
+    },
+    {
+      "key": "M",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 11.0
+    },
+    {
+      "key": ",",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 12.0
+    },
+    {
+      "key": ",",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 13.0
+    },
+    {
+      "key": "M",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 14.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 15.0,
+      "accidental": 1
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 16.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 17.0,
+      "accidental": 1
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 18.0
+    },
+    {
+      "key": "V",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 19.0,
+      "accidental": 1
+    },
+    {
+      "key": "V",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 20.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 21.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 22.0,
+      "accidental": 1
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 23.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 24.0,
+      "accidental": 1
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 25.0
+    }
+  ],
+  "lyrics": []
+}

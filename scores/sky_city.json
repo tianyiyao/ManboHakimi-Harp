@@ -1,0 +1,344 @@
+{
+  "version": "2.1",
+  "id": "sky_city",
+  "name": "天空之城（简化版）",
+  "bpm": 76,
+  "timeSignature": "4/4",
+  "keyMap": [
+    "Z",
+    "X",
+    "C",
+    "V",
+    "B",
+    "N",
+    "M",
+    ","
+  ],
+  "notes": [
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 0.0
+    },
+    {
+      "key": "M",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 1.0
+    },
+    {
+      "key": ",",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 1.5
+    },
+    {
+      "key": "Z",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 2.0
+    },
+    {
+      "key": "C",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 4.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 6.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 7.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 7.5
+    },
+    {
+      "key": "V",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 8.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 10.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 11.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 11.5
+    },
+    {
+      "key": ",",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 12.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 14.0
+    },
+    {
+      "key": "M",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 15.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 15.5
+    },
+    {
+      "key": "N",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 16.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 18.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 19.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 19.5
+    },
+    {
+      "key": "M",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 20.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 22.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 23.0
+    },
+    {
+      "key": "M",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 23.5
+    },
+    {
+      "key": ",",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 24.0
+    },
+    {
+      "key": "C",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 26.0
+    },
+    {
+      "key": "X",
+      "type": "hold",
+      "duration": 4.0,
+      "beat": 28.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 32.0
+    },
+    {
+      "key": "M",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 33.0
+    },
+    {
+      "key": ",",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 33.5
+    },
+    {
+      "key": "Z",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 34.0
+    },
+    {
+      "key": "C",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 36.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 38.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 39.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 39.5
+    },
+    {
+      "key": "V",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 40.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 42.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 43.0
+    },
+    {
+      "key": "X",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 43.5
+    },
+    {
+      "key": ",",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 44.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 46.0
+    },
+    {
+      "key": "M",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 47.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 47.5
+    },
+    {
+      "key": "N",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 48.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 50.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 51.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 51.5
+    },
+    {
+      "key": "M",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 52.0
+    },
+    {
+      "key": "Z",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 54.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 55.0
+    },
+    {
+      "key": "M",
+      "type": "tap",
+      "duration": 0.5,
+      "beat": 55.5
+    },
+    {
+      "key": ",",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 56.0
+    },
+    {
+      "key": "C",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 58.0
+    },
+    {
+      "key": ",",
+      "type": "hold",
+      "duration": 4.0,
+      "beat": 60.0
+    }
+  ],
+  "lyrics": []
+}

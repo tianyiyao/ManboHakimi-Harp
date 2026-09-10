@@ -1,0 +1,116 @@
+{
+  "version": "2.1",
+  "id": "exercise_hold_chain",
+  "name": "练习·连续长按衔接",
+  "bpm": 70,
+  "timeSignature": "4/4",
+  "keyMap": [
+    "Z",
+    "X",
+    "C",
+    "V",
+    "B",
+    "N",
+    "M",
+    ","
+  ],
+  "notes": [
+    {
+      "key": "Z",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 0.0
+    },
+    {
+      "key": "X",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 2.0
+    },
+    {
+      "key": "C",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 4.0
+    },
+    {
+      "key": "V",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 6.0
+    },
+    {
+      "key": "B",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 8.0
+    },
+    {
+      "key": "N",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 10.0
+    },
+    {
+      "key": "M",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 12.0
+    },
+    {
+      "key": ",",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 14.0
+    },
+    {
+      "key": ",",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 16.0
+    },
+    {
+      "key": "M",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 18.0
+    },
+    {
+      "key": "N",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 20.0
+    },
+    {
+      "key": "B",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 22.0
+    },
+    {
+      "key": "V",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 24.0
+    },
+    {
+      "key": "C",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 26.0
+    },
+    {
+      "key": "X",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 28.0
+    },
+    {
+      "key": "Z",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 30.0
+    }
+  ],
+  "lyrics": []
+}

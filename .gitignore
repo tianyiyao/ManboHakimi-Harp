@@ -1,0 +1,39 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+*.egg-info/
+.eggs/
+
+# ---- PyInstaller 构建产物 ----
+# build/ 是编译中间目录（~94MB），dist/ 是打包输出（EXE 走 Release 附件，不入库）
+build/
+dist/
+*.manifest
+
+# ---- 运行时用户数据（本机配置，不入库）----
+config/
+!config/.gitkeep
+*.log
+
+# ---- 编辑器 / IDE ----
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ---- 系统 ----
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- 临时文件 ----
+*.tmp
+*.bak

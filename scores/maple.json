@@ -1,0 +1,177 @@
+{
+  "version": "2.1",
+  "id": "maple",
+  "name": "枫（周杰伦·简化版）",
+  "bpm": 64,
+  "timeSignature": "4/4",
+  "keyMap": [
+    "Z",
+    "X",
+    "C",
+    "V",
+    "B",
+    "N",
+    "M",
+    ","
+  ],
+  "notes": [
+    {
+      "key": "V",
+      "type": "hold",
+      "duration": 4.0,
+      "beat": 0.0
+    },
+    {
+      "key": "C",
+      "type": "hold",
+      "duration": 4.0,
+      "beat": 4.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 8.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 9.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 10.0
+    },
+    {
+      "key": ",",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 11.0
+    },
+    {
+      "key": "N",
+      "type": "hold",
+      "duration": 4.0,
+      "beat": 12.0
+    },
+    {
+      "key": "B",
+      "type": "hold",
+      "duration": 4.0,
+      "beat": 16.0
+    },
+    {
+      "key": ",",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 20.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 21.0
+    },
+    {
+      "key": "B",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 22.0
+    },
+    {
+      "key": "V",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 23.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 24.0
+    },
+    {
+      "key": "X",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 25.0
+    },
+    {
+      "key": "Z",
+      "type": "hold",
+      "duration": 4.0,
+      "beat": 27.0
+    },
+    {
+      "key": "N",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 31.0
+    },
+    {
+      "key": "B",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 33.0
+    },
+    {
+      "key": "C",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 35.0
+    },
+    {
+      "key": "V",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 36.0
+    },
+    {
+      "key": "B",
+      "type": "hold",
+      "duration": 2.0,
+      "beat": 37.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 39.0
+    },
+    {
+      "key": ",",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 40.0
+    },
+    {
+      "key": "N",
+      "type": "tap",
+      "duration": 1.0,
+      "beat": 41.0
+    },
+    {
+      "key": "B",
+      "type": "hold",
+      "duration": 4.0,
+      "beat": 42.0
+    }
+  ],
+  "lyrics": [
+    {
+      "time": 0.0,
+      "text": "缓缓飘落的枫叶像思念"
+    },
+    {
+      "time": 15000.0,
+      "text": "为何挽回要赶在冬天来之前"
+    },
+    {
+      "time": 30000.0,
+      "text": "爱你穿越时间，两行来自秋末的眼泪"
+    }
+  ]
+}
