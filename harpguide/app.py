@@ -20,8 +20,8 @@ from .config import Settings, app_root, data_dir
 from .editor import EditorWindow
 from .floating_ball import FloatingBall
 from .hotkeys import HotkeyFilter
-from .keywatch import (MATCH_WINDOW_MS, MISS_WINDOW_MS, KeyWatcher,
-                       judge_offset)
+from .keywatch import (HOLD_EARLY_MS, HOLD_LATE_MS, JUDGE_GOOD_MS,
+                       MISS_WINDOW_MS, KeyWatcher, judge_offset)
 from .models import NoteType, Score, load_scores
 from .overlay import OverlayWindow
 from .playback import PlaybackEngine
@@ -85,6 +85,7 @@ class AppController(QObject):
         self._combo: int = 0
         self._score: int = 0
         self._judged: set = set()          # 已判定音符在 score.notes 中的下标，避免重复计分/漏音误判
+        self._warned: set = set()          # 已报过「抢拍/拖拍 MISS」的音符下标：不消耗音符，只提醒一次
         self._off_hist: List[float] = []   # 最近若干次命中的带符号偏移，用于提示玩家调判定偏移
 
         # 校准数据（按「物理分辨率 @ 缩放比」分档持久化）
@@ -573,6 +574,7 @@ class AppController(QObject):
         self._combo = 0
         self._score = 0
         self._judged.clear()
+        self._warned.clear()
         self._off_hist.clear()
         self._key_watcher.reset()
         self.overlay.waterfall.clear_feedback()
@@ -610,39 +612,54 @@ class AppController(QObject):
             if n.start_ms(bpm) < jpos - MISS_WINDOW_MS:
                 self._judged.add(i)
 
-    def _process_hits(self, pos: float, pressed: Optional[List[str]] = None) -> None:
-        """每帧调用：读按键 -> 判定命中；并检测漏音。
+    def _process_hits(self, pos: float, pressed: Optional[List[str]] = None,
+                      held: Optional[set] = None) -> None:
+        """每帧调用：判定本帧按键 -> 长按按住判定 -> 漏音检测。
 
-        `pressed` 由 `_tick` 传入（每帧都轮询一次边沿状态）；单独调用时自己轮询。
+        `pressed` / `held` 由 `_tick` 传入（每帧只轮询一次键盘）；单独调用时自行轮询。
         """
         if pressed is None:
-            pressed = self._key_watcher.poll()
+            pressed, held = self._key_watcher.poll()
         if not self.settings.hit_feedback:
             return
         jpos = self._jpos(pos)
+        # 1) 本帧新按下的键：短按判定 / 长按起音
         for key in pressed:
             self._on_key_hit(key, jpos)
-        # 漏音检测：起点过了窗口仍未被按下的音符 -> MISS
         score = self.engine.score
         bpm = score.bpm
+        held = held or set()
+        # 2) 长按按住判定 + 漏音检测（合并成一次遍历）
         for i, n in enumerate(score.notes):
             if n.type is NoteType.REST or i in self._judged:
                 continue
-            if n.start_ms(bpm) + MISS_WINDOW_MS < jpos:
+            start = n.start_ms(bpm)
+            if (n.type is NoteType.HOLD and n.key in held
+                    and start - HOLD_EARLY_MS <= jpos <= n.end_ms(bpm) + HOLD_LATE_MS):
+                # 长音：键正被按住且与音符区间有重叠 -> 命中。
+                # 提前压住是长音的正确手法，不该被罚，因此偏移下限钳到 0（=PERFECT）；
+                # 上限钳到 GOOD 窗口——晚压住的长音至少算 GOOD，不判 MISS。
+                self._judged.add(i)
+                off = min(max(jpos - start, 0.0), JUDGE_GOOD_MS)
+                self._apply_judgment(score.key_index(n.key), off)
+                continue
+            # 漏音：起点过了窗口仍未被按下 -> MISS
+            if start + MISS_WINDOW_MS < jpos:
                 self._judged.add(i)
                 self._register_miss(score.key_index(n.key))
 
     def _on_key_hit(self, key: str, pos: float) -> None:
+        """处理一次按键边沿（短按判定 / 长按起音）。"""
         score = self.engine.score
         col = score.key_index(key)
         if col < 0:
             return
         bpm = score.bpm
-        # 1) 先在「判定窗口」内找最近的、还没判定的音符 -> 正常判定
-        #    注意：`_judged` 存的是「音符在 score.notes 里的下标」而不是 id(note)。
-        #    用 id() 会踩 CPython 地址复用：换曲（编辑器试听 / 切歌）后新音符可能
-        #    拿到已释放旧音符的地址，被误判成"已判定"，于是玩家按对了却被匹配到
-        #    更后面的音符 -> 莫名其妙 MISS。
+        # 找该列最近的、还没判定的音符。
+        # 注意：`_judged` 存的是「音符在 score.notes 里的下标」而不是 id(note)。
+        # 用 id() 会踩 CPython 地址复用：换曲（编辑器试听 / 切歌）后新音符可能
+        # 拿到已释放旧音符的地址，被误判成"已判定"，于是玩家按对了却被匹配到
+        # 更后面的音符 -> 莫名其妙 MISS。
         best_i = -1
         best_off = 0.0
         for i, n in enumerate(score.notes):
@@ -652,30 +669,30 @@ class AppController(QObject):
             if abs(off) <= MISS_WINDOW_MS and (best_i < 0 or abs(off) < abs(best_off)):
                 best_i, best_off = i, off
         if best_i < 0:
-            # 2) 判定窗口内没有可判音符：看看更宽的「匹配窗口」里这一列是否有音符。
-            #    有 = 只是时机偏了 / 重复按，静默忽略，不再叠加一次空按 MISS。
-            near = None
-            near_off = 0.0
-            for n in score.notes:
-                if n.key != key or n.type is NoteType.REST:
-                    continue
-                off = pos - n.start_ms(bpm)
-                if abs(off) <= MATCH_WINDOW_MS and (near is None or abs(off) < abs(near_off)):
-                    near, near_off = n, off
-            if near is not None:
-                return
-            # 3) 这一列附近完全没有音符 -> 真空按，记 MISS
-            self._register_miss(col)
+            # 该列附近根本没有音符 -> 空按。
+            # 练习工具里试键、摸键位是常态，静默忽略：不判 MISS，也不断连击。
             return
-        self._judged.add(best_i)
-        label, points = judge_offset(best_off)
+        if abs(best_off) <= JUDGE_GOOD_MS:
+            self._judged.add(best_i)
+            self._apply_judgment(col, best_off)
+            return
+        # 抢拍 / 拖拍宽容带：玩家的确在打这个音符，只是时机偏了。
+        # 记一次 MISS 提醒，但**不消耗该音符** —— 玩家可以在窗口内重按救回来。
+        # 同一个音符只提醒一次，避免连按刷屏。
+        if best_i not in self._warned:
+            self._warned.add(best_i)
+            self._register_miss(col)
+
+    def _apply_judgment(self, col: int, off: float) -> None:
+        """按偏移给出判定，并推送连击 / 得分 / 浮层 / 琴键光环。"""
+        label, points = judge_offset(off)
         if label == "MISS":
             self._combo = 0
         else:
             self._combo += 1
             # 连击奖励：连得越多，单次加分越多
             self._score += points + max(0, self._combo - 1) * 2
-        self._record_offset(best_off)
+        self._record_offset(off)
         color = JUDGE_COLORS.get(label, THEME.danger)
         self.overlay.waterfall.push_judgment(col, label, color)
         self.overlay.keys.flash_hit(col, color)
@@ -871,11 +888,11 @@ class AppController(QObject):
 
         # 命中反馈：注入真实时钟（动画用）+ 播放中被动轮询 8 键做判定
         self.overlay.waterfall.set_real_ms(self._clock_ms)
-        # 每帧都轮询一次按键边沿：暂停/预备拍期间按住不放，恢复时不会被误当成"新按下"
-        pressed = self._key_watcher.poll()
+        # 每帧都轮询一次键盘：暂停/预备拍期间按住不放，恢复时不会被误当成"新按下"
+        pressed, held = self._key_watcher.poll()
         if (self.settings.hit_feedback and self.engine.playing
                 and self.overlay.isVisible()):
-            self._process_hits(pos, pressed)
+            self._process_hits(pos, pressed, held)
 
         if self.overlay.isVisible():
             self.overlay.waterfall.set_playing(self.engine.playing)

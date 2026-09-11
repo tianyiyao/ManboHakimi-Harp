@@ -28,6 +28,7 @@ FLASH_MS = 150.0        # 命中闪光时长
 MIN_LOOKAHEAD_MS = 600.0
 MAX_LOOKAHEAD_MS = 6000.0
 POPUP_MS = 780.0        # 判定文字（PERFECT/GREAT/…）上浮 + 淡出时长
+POPUP_BOX_W = 160.0     # 判定文字的绘制框宽度（居中在音轨上，钳在控件内）
 COMBO_HOLD_MS = 1500.0  # 连击数字停留在高亮状态的时长
 
 
@@ -75,6 +76,15 @@ class WaterfallWidget(QWidget):
         if len(self._popups) > 12:
             self._popups = self._popups[-12:]
         self.update()
+
+    def _popup_box_x(self, col: int) -> float:
+        """判定文字框的左边界：居中在音轨上，但钳在控件内。
+
+        最左 / 最右列的判定文字如果不钳，会被控件边缘裁掉（PERFECT -> RFECT）。
+        """
+        cx = self._col_x(col) + self._note_width(col) / 2
+        x0 = cx - POPUP_BOX_W / 2
+        return max(0.0, min(x0, max(0.0, self.width() - POPUP_BOX_W)))
 
     def set_combo(self, combo: int, score: int) -> None:
         if combo != self._combo:
@@ -197,15 +207,20 @@ class WaterfallWidget(QWidget):
             if alpha <= 2:
                 continue
             col = pu["col"]
-            cx = self._col_x(col) + self._note_width(col) / 2
             y = judge_y - 26.0 - k * 48.0
-            # 字号先弹大再回落
-            size = int(22 + 10 * max(0.0, 1.0 - k * 3.0))
+            # 字号先弹大再回落。
+            # 上限刻意压到 28：文字框钳在控件内后，最左列的判定文字会紧贴
+            # 左边缘，而左边缘还要给曲目侧边栏的 22px 把手让位——字号再大，
+            # PERFECT 的头一个字母就会被把手压掉。
+            size = int(20 + 8 * max(0.0, 1.0 - k * 3.0))
             p.setFont(QFont(THEME.font_mono, size, QFont.Weight.Bold))
             c = QColor(pu["color"])
             c.setAlpha(alpha)
             p.setPen(c)
-            p.drawText(QRectF(cx - 80, y - 18, 160, 36),
+            # 文字框（160 宽）居中在音轨上，但必须钳在控件内——
+            # 否则最左/最右列的判定文字会被裁掉（PERFECT 变 RFECT）。
+            x0 = self._popup_box_x(col)
+            p.drawText(QRectF(x0, y - 18, POPUP_BOX_W, 36),
                        Qt.AlignmentFlag.AlignCenter, pu["text"])
         self._popups = alive
 

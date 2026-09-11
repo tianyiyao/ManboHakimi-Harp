@@ -11,23 +11,31 @@
     PERFECT  |偏移| <= 110ms
     GREAT    |偏移| <= 220ms
     GOOD     |偏移| <= 350ms
-    MISS     其余（空按 / 超时未按）
+    MISS     超时未按 / 抢拍拖拍
 
 关于「按对了还出 MISS」：真实演奏里按键与谱面总有一点系统性时差
-（人的反应 + 画面延迟）。因此这里有四个宽容设计：
+（人的反应 + 画面延迟）。因此这里有一整套宽容设计：
 1. 判定窗口整体放宽（见上表）；
-2. `MATCH_WINDOW_MS` 比判定窗口更宽——落在里面的按键视为「这一列已有音符」，
-   只是迟到/重复，**不再额外记一次空按 MISS**，避免一次失误变成两个 MISS；
-3. `judge_offset_ms`（设置面板「判定偏移」）可以把整个判定基准平移，
+2. 抢拍 / 拖拍宽容带（`GRACE_MS`）——偏移超出 GOOD 窗口但仍落在
+   `MISS_WINDOW_MS` 内的按键，说明玩家**确实在打这个音符**，只是时机偏了。
+   此时记一次 MISS 但**不消耗该音符**，玩家可以在窗口内重按救回来。
+   这是修复「第一次没按好，再按还是 MISS」的关键（旧实现直接把音符吃掉，
+   于是重按既匹配不到原音符、又被判成空按，连吃两个 MISS）；
+3. 空按**不判 MISS**（见 `app._on_key_hit`）——练习工具里试键/找键是常态，
+   附近根本没音符的敲击静默忽略，不再断连击；
+4. `judge_offset_ms`（设置面板「判定偏移」）可以把整个判定基准平移，
    用来补偿玩家固定偏早/偏晚的手感；
-4. 漏音窗口 = 判定窗口 + `MISS_GRACE_MS`，杜绝"还能判 GOOD 却被漏音抢先判 MISS"
-   的帧序竞争。
+5. 漏音窗口 = 判定窗口 + `GRACE_MS`，杜绝"还能判 GOOD 却被漏音抢先判 MISS"
+   的帧序竞争；
+6. **长按（hold）单独判定**——玩家常在长音起点**之前**就把键压住（这是正确的
+   长按手法），那一刻没有新的按键边沿，只看边沿的旧逻辑会整条长音判 MISS。
+   因此长音改为「键处于按住状态 + 与音符区间有重叠」判定，见 `HOLD_EARLY_MS`。
 """
 from __future__ import annotations
 
 import ctypes
 import sys
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set, Tuple
 
 # 游戏内口风琴 8 键的虚拟键码（VK）
 VK_PLAY_KEYS: Dict[str, int] = {
@@ -45,16 +53,20 @@ VK_PLAY_KEYS: Dict[str, int] = {
 JUDGE_PERFECT_MS = 110.0
 JUDGE_GREAT_MS = 220.0
 JUDGE_GOOD_MS = 350.0
-# 命中窗口：按键落在 [start-window, start+window] 内才算"打到"这个音符
-HIT_WINDOW_MS = JUDGE_GOOD_MS
-# 音符超时（漏音）窗口**必须略宽于判定窗口**：两者相等时，漏音定时器会在
+
+# 抢拍 / 拖拍宽容带。
+# 偏移落在 (GOOD, MISS] 之间的按键：玩家确实在打这个音符，只是时机偏了。
+# 记一次 MISS，但**不消耗音符**，玩家还能重按救回来（详见模块 docstring 第 2 条）。
+GRACE_MS = 160.0
+# 音符超时（漏音）窗口**必须宽于判定窗口**：两者相等时，漏音定时器会在
 # 「刚好还能判 GOOD 的那一帧」抢先触发，于是玩家按对了却看到 MISS（帧序竞争）。
-# 留 90ms 余量后，任何能判 GOOD 及以上的按键都保证先被吃掉，不会再被漏音抢先。
-MISS_GRACE_MS = 90.0
-MISS_WINDOW_MS = JUDGE_GOOD_MS + MISS_GRACE_MS
-# 按键匹配窗口：比判定窗口更宽。落在这个范围内的按键说明"这一列刚刚/即将有音符"，
-# 只是时机偏了或是重复按，**不再叠加一次空按 MISS**（避免一次失误两处 MISS）。
-MATCH_WINDOW_MS = 640.0
+MISS_WINDOW_MS = JUDGE_GOOD_MS + GRACE_MS
+
+# 长按（hold）音符的按住判定窗口。
+# 长音天生要「提前压住」，因此早侧的宽容度远大于判定窗口；
+# 晚侧给一点余量，处理手松得慢的玩家。
+HOLD_EARLY_MS = 300.0
+HOLD_LATE_MS = 120.0
 
 # 判定 -> (显示文字, 基础分)
 JUDGE_TABLE = (
@@ -74,9 +86,11 @@ def judge_offset(offset_ms: float) -> tuple:
 
 
 class KeyWatcher:
-    """轮询检测 8 键的"按下瞬间"（边沿触发）。
+    """轮询检测 8 键的按下状态。
 
-    用法：每帧调用 poll()，返回本帧**新按下**的键字母列表。
+    用法：每帧调用 poll()，返回 `(本帧新按下的键, 当前按住不放的键)`。
+    - 新按下的键用于短按（tap）判定与起音；
+    - 按住集合用于长按（hold）判定——长音要提前压住，只看边沿会漏。
     """
 
     def __init__(self, vk_map: Optional[Dict[str, int]] = None):
@@ -88,16 +102,17 @@ class KeyWatcher:
     def available(self) -> bool:
         return self._user32 is not None
 
-    def poll(self) -> List[str]:
-        """返回本帧刚按下的键（仅读取，不拦截、不吞键）。
+    def poll(self) -> Tuple[List[str], Set[str]]:
+        """返回 (本帧刚按下的键, 当前处于按住状态的键)。仅读取，不拦截、不吞键。
 
         为防「帧被游戏拖慢导致漏掉一次快速敲击」，除了比较 0x8000（当前是否按下），
         还读取 0x0001（**上次调用之后是否发生过按下**）。游戏满载时帧间隔可能 >40ms，
         单靠 0x8000 的边沿比较会漏掉这种短促轻敲；加上 0x0001 保证不漏。
         """
         if self._user32 is None:
-            return []
+            return [], set()
         pressed: List[str] = []
+        held: Set[str] = set()
         for key, vk in self._map.items():
             try:
                 state = self._user32.GetAsyncKeyState(vk)
@@ -108,7 +123,9 @@ class KeyWatcher:
             if (down and not self._down[key]) or since_last:
                 pressed.append(key)
             self._down[key] = down
-        return pressed
+            if down:
+                held.add(key)
+        return pressed, held
 
     def reset(self) -> None:
         """清空边沿状态（切曲 / 重置时调用，避免把"一直按住"误判为新按下）。"""

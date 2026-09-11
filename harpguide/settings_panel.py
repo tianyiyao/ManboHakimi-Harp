@@ -89,7 +89,7 @@ class SettingsPanel(QWidget):
     loop_range_set = Signal(float, float)  # A 拍, B 拍
     loop_range_cleared = Signal()
 
-    PANEL_W = 340
+    PANEL_W = 380
     PANEL_H = 660
 
     def __init__(self, settings: Settings, parent: Optional[QWidget] = None):

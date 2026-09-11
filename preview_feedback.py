@@ -9,12 +9,15 @@ sys.path.insert(0, str(Path(__file__).parent))
 from harpguide.app import AppController
 from harpguide.models import NoteType
 from harpguide.theme import THEME
+from preview_font import install_cjk_fonts
 
 OUT = Path(__file__).parent / "preview"
 OUT.mkdir(exist_ok=True)
 
 app = QApplication([])
 app.setApplicationName("ManboHakimi-Harp")
+# 离屏平台不做系统字体枚举，必须显式挂载中文字体文件，否则截图里中文全是方块
+install_cjk_fonts(app)
 ctl = AppController(app)
 score = ctl.engine.score
 

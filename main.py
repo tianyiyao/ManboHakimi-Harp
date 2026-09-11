@@ -165,7 +165,8 @@ def _selftest(controller) -> int:
     assert judge_offset(260)[0] == "GOOD"
     assert judge_offset(999)[0] == "MISS"
     kw = KeyWatcher()
-    assert isinstance(kw.poll(), list)           # 被动轮询不上抛（Windows 实测无按键 -> [])
+    _pressed, _held = kw.poll()                  # 被动轮询不上抛（Windows 实测无按键 -> ([], set())）
+    assert isinstance(_pressed, list) and isinstance(_held, set)
     kw.reset()
     controller.settings.hit_feedback = True
     controller.overlay.waterfall.set_feedback_enabled(True)
@@ -177,9 +178,10 @@ def _selftest(controller) -> int:
     assert _idx(sc_fb, n_fb) in controller._judged
     assert controller.overlay.waterfall._popups
     assert controller.overlay.waterfall._combo == 1
-    # 空按（附近没有该键的音符）-> MISS + 连击清零
+    # 空按（附近没有该键的音符）-> 静默忽略：不判 MISS、不断连击
+    # （练习工具里试键 / 摸键位是常态，误报 MISS 只会干扰手感）
     controller._on_key_hit(n_fb.key, n_fb.start_ms(sc_fb.bpm) + 99999)
-    assert controller._combo == 0
+    assert controller._combo == 1, "空按不该断连击"
     # 漏音：起点过了窗口仍未按 -> 自动 MISS
     controller._reset_feedback(0.0)
     n_fb2 = next(n for n in sc_fb.notes
@@ -194,17 +196,18 @@ def _selftest(controller) -> int:
     assert not controller._judged and controller._score == 0 and controller._combo == 0
     controller.overlay.waterfall.set_feedback_enabled(controller.settings.hit_feedback)
 
-    # 1c-2) 判定偏移 + 空按宽容（修复「按对了还出 MISS」）
-    from harpguide.keywatch import JUDGE_GOOD_MS, MATCH_WINDOW_MS
+    # 1c-2) 判定偏移 + 抢拍/拖拍宽容带 + 长按按住判定
+    from harpguide.keywatch import GRACE_MS, HOLD_LATE_MS, JUDGE_GOOD_MS
     from harpguide.models import Note as _Note, Score as _SynthScore
-    assert MATCH_WINDOW_MS > MISS_WINDOW_MS, "匹配窗口必须比判定窗口宽，否则会双重 MISS"
     assert MISS_WINDOW_MS > JUDGE_GOOD_MS, "漏音窗口必须比判定窗口宽，否则漏音会抢在命中之前"
+    assert GRACE_MS > 0, "必须有抢拍/拖拍宽容带，否则按偏一点就把音符吃掉"
     assert judge_offset(320)[0] == "GOOD" and judge_offset(360)[0] == "MISS"
     synth = _SynthScore(
         id="__selftest_synth__", name="自检·判定偏移", bpm=60.0,
-        notes=[_Note("Z", NoteType.TAP, 1.0, 0.0),     # 0 ms
-               _Note("Z", NoteType.TAP, 1.0, 0.6),     # 600 ms
-               _Note("Z", NoteType.TAP, 1.0, 12.0)],   # 12000 ms
+        notes=[_Note("Z", NoteType.TAP, 1.0, 0.0),      # 0 ms
+               _Note("Z", NoteType.TAP, 1.0, 0.6),      # 600 ms
+               _Note("Z", NoteType.TAP, 1.0, 12.0),     # 12000 ms
+               _Note("Z", NoteType.HOLD, 4.0, 20.0)],   # 20000 ms 起，持续 4000ms（长按）
     )
     _real_path_fb = controller.settings._path
     controller.settings._path = Path(tempfile.gettempdir()) / "harp_fb_test.json"
@@ -218,19 +221,31 @@ def _selftest(controller) -> int:
     controller._on_key_hit("Z", controller._jpos(250.0))     # -> 等效 0 偏移
     assert controller._combo == 1, controller._combo
     assert 0 in controller._judged
-    # 同一音符重复按：落在匹配窗口内 -> 静默忽略，不再清零连击
-    controller._on_key_hit("Z", controller._jpos(250.0 + 80))
-    assert controller._combo == 1, "重复按同一音符不应再记 MISS"
-    assert len(controller.overlay.waterfall._popups) == 1
     # 第二个音符按点也能命中（偏移统一平移）
     controller._on_key_hit("Z", controller._jpos(250.0 + 600.0))
     assert controller._combo == 2, controller._combo
-    # 附近确实没有音符 -> 真・空按 MISS
+    assert 1 in controller._judged
+    # 附近确实没有音符 -> 空按：静默忽略，不判 MISS、不断连击
     controller._on_key_hit("Z", controller._jpos(250.0 + 4000.0))
-    assert controller._combo == 0
-    # 漏音检测同样按偏移平移后的基准
+    assert controller._combo == 2, "空按不该断连击"
+
+    # 抢拍 / 拖拍宽容带：偏移超出 GOOD 窗口，但仍在 MISS_WINDOW 内 ——
+    # 记一次 MISS 提醒，却**不消耗音符**，玩家可以重按救回来。
+    # 这是修复「第一次没按好，再按还是 MISS」的关键（旧实现把音符吃掉，
+    # 重按既匹配不到原音符、又被判成空按，连吃两个 MISS）。
+    controller._set_judge_offset(0)
     controller._reset_feedback(0.0)
-    controller._process_hits(12000.0 + 250.0 + MISS_WINDOW_MS + 60.0, pressed=[])
+    t3 = synth.notes[2].start_ms(synth.bpm)          # 12000 ms
+    controller._on_key_hit("Z", t3 + 400.0)          # 晚 400ms（> GOOD 350）
+    assert controller._combo == 0, "宽容带内应记一次 MISS"
+    assert 2 not in controller._judged, "宽容带不得消耗音符，否则重按就没救了"
+    controller._on_key_hit("Z", t3 + 430.0)          # 再按，仍在宽容带 -> 只提醒一次
+    assert 2 not in controller._judged and controller._combo == 0
+    controller._on_key_hit("Z", t3)                  # 音符还在，正点重按 -> 命中
+    assert 2 in controller._judged and controller._combo == 1, "重按必须能救回来"
+    # 漏音：起点过了窗口仍未按 -> 自动 MISS
+    controller._reset_feedback(0.0)
+    controller._process_hits(12000.0 + MISS_WINDOW_MS + 60.0, pressed=[])
     assert 2 in controller._judged
     # 回归（用户反馈「按对了还是显示 MISS」的帧序竞争）：
     # 在「刚好还能判 GOOD」的时刻，漏音定时器不得抢先把这个音符判掉。
@@ -244,11 +259,54 @@ def _selftest(controller) -> int:
     controller._on_key_hit("Z", controller._jpos(t_edge))
     assert 2 in controller._judged and controller._combo == 1, "边缘时刻按对了必须判 GOOD"
     assert controller.overlay.waterfall._popups[-1]["text"] == "GOOD"
+    # 长按（hold）：玩家常在长音起点**之前**就把键压住（这是正确的长按手法），
+    # 那一刻没有新的按键边沿 —— 旧实现只看边沿，会整条长音判 MISS。
+    # 新实现按「键处于按住状态 + 与音符区间有重叠」判定。
+    hold_n = synth.notes[3]
+    h_start = hold_n.start_ms(synth.bpm)      # 20000 ms
+    h_end = hold_n.end_ms(synth.bpm)          # 24000 ms
+    controller._reset_feedback(h_start - 200.0)          # 把已滑过的音符标记掉
+    controller._process_hits(h_start - 200.0, pressed=[], held={"Z"})
+    assert 3 in controller._judged, "提前压住的长音必须命中，不能判 MISS"
+    assert controller._combo == 1
+    assert controller.overlay.waterfall._popups[-1]["text"] == "PERFECT"
+    # 长音持续按住期间不得重复判定
+    _n_pop = len(controller.overlay.waterfall._popups)
+    controller._process_hits(h_start + 800.0, pressed=[], held={"Z"})
+    assert len(controller.overlay.waterfall._popups) == _n_pop, "长音不应重复判定"
+    # 长音整段没按 -> 漏音 MISS
+    controller._reset_feedback(h_start)
+    controller._process_hits(h_end + HOLD_LATE_MS + 60.0, pressed=[], held=set())
+    assert 3 in controller._judged
     # 最近匹配：两个音符之间按下，判给「在判定窗口内更近」的那个
     controller._reset_feedback(0.0)
     controller._on_key_hit("Z", controller._jpos(250.0))     # 0ms 前、600ms 后 -> 判给 0ms
     assert 0 in controller._judged
     assert controller.overlay.waterfall._popups[-1]["text"] == "GOOD"     # 迟到 250ms
+    # 回归：最左 / 最右列的判定文字不得被控件边缘裁掉（PERFECT -> RFECT）。
+    # 文字框必须钳在控件内，且留出曲目侧边栏把手（22px）的让位空间。
+    from harpguide.waterfall import POPUP_BOX_W
+    _wf = controller.overlay.waterfall
+    assert _wf.width() >= POPUP_BOX_W, _wf.width()
+    _max_x = _wf.width() - POPUP_BOX_W
+    for _c in (0, 7):
+        _x = _wf._popup_box_x(_c)
+        assert 0.0 <= _x <= _max_x, (_c, _x, _max_x)
+    _x0 = _wf._popup_box_x(0)
+    assert _x0 >= 0.0 and _x0 + POPUP_BOX_W <= _wf.width()
+    # 判定浮层真的画得出来：直接调绘制方法（绕开 Qt 虚函数分发）。
+    # 走 Qt 的 paintEvent 时，Python 异常会被吞掉、只在 stderr 打一行日志；
+    # 直接调用则原样抛出，属性名写错这类低级错误当场就会被自检抓住。
+    from PySide6.QtGui import QPainter as _QP, QPixmap as _QPM
+    _wf.push_judgment(0, "PERFECT", "#FFD54F")
+    _wf.push_judgment(7, "MISS", "#FF5252")
+    _pm = _QPM(max(1, _wf.width()), max(1, _wf.height()))
+    _pt = _QP(_pm)
+    try:
+        _wf._paint_feedback(_pt)
+    finally:
+        _pt.end()
+    print("[OK] 判定文字边界钳制（最左/最右列不被裁 + 浮层绘制不抛异常）")
     # 回归：「已判定」必须记 score.notes 的下标，而不是 id(note)。
     # 用 id() 会踩 CPython 地址复用（编辑器试听 / 切歌后新音符拿到旧地址），
     # 让玩家按对了却被匹配到后面的音符 -> 莫名 MISS。
@@ -276,7 +334,7 @@ def _selftest(controller) -> int:
     controller.settings._path = _real_path_fb
     controller.engine.set_score(backup_score)
     controller._reset_feedback(0.0)
-    print("[OK] 命中反馈（判定/连击/得分/空按/漏音/跳转同步/判定偏移/空按宽容）")
+    print("[OK] 命中反馈（判定/连击/得分/空按静默/漏音/跳转同步/判定偏移/抢拍宽容带/长按按住）")
 
     # 2) 播放引擎时间轴
     engine = controller.engine
