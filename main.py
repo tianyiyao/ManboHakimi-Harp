@@ -12,6 +12,89 @@ import sys
 from PySide6.QtWidgets import QApplication
 
 
+# ---------------------------------------------------------------- 崩溃日志
+# 打包时 console=False：程序一旦抛异常，用户看到的就是"没反应"，
+# 既截图不到也描述不清。把未捕获异常连版本/环境写进 config/harpguide.log，
+# 出问题让用户把这个文件发过来即可定位。
+# 注：PySide6 槽函数里的未捕获异常同样会走 sys.excepthook（已验证），
+# 所以一个钩子既管主线程崩溃，也管"点按钮炸了"。
+LOG_MAX_BYTES = 512 * 1024      # 超过就轮转成 .1，只留最近两份，不做完整轮转
+
+_LOG_FILE = None                # 自检会覆盖成临时路径，保证不写用户真实目录
+
+
+def _log_file():
+    """日志落盘位置：与 settings.json 同在 data_dir()/config，便携模式行为一致。"""
+    from pathlib import Path
+    if _LOG_FILE is not None:
+        return Path(_LOG_FILE)
+    try:
+        from harpguide.config import data_dir
+        return data_dir() / "config" / "harpguide.log"
+    except Exception:           # data_dir 自己出问题时也不能再炸一次
+        import tempfile
+        return Path(tempfile.gettempdir()) / "ManboHakimi-Harp.log"
+
+
+def _write_log(text: str) -> None:
+    """追加写日志。任何失败都静默放弃——日志绝不能成为新的崩溃源。"""
+    from pathlib import Path
+    try:
+        path = Path(_log_file())
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if path.exists() and path.stat().st_size > LOG_MAX_BYTES:
+            path.replace(path.with_name(path.name + ".1"))
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(text)
+    except Exception:
+        pass
+
+
+def _install_excepthook() -> None:
+    """安装全局异常钩子（进程内只装一次即可，重复调用会覆盖成同样的逻辑）。
+
+    刻意只用 sys / traceback / datetime 这几个必然可用的模块：
+    崩溃处理器自己再去 import 别的模块（例如 platform）在冻结态有失败风险，
+    「报错时报不出去」比不报更糟。
+    """
+    import datetime
+    import traceback
+
+    def _hook(exc_type, exc, tb) -> None:
+        if issubclass(exc_type, KeyboardInterrupt):     # Ctrl+C 不是崩溃
+            sys.__excepthook__(exc_type, exc, tb)
+            return
+        try:
+            from harpguide import __version__
+        except Exception:
+            __version__ = "?"
+        try:
+            detail = "".join(traceback.format_exception(exc_type, exc, tb))
+        except Exception:
+            detail = f"{exc_type} / {exc}\n"
+        _write_log(
+            f"\n===== {datetime.datetime.now():%Y-%m-%d %H:%M:%S} v{__version__} =====\n"
+            f"{detail}"
+            f"--- Python {sys.version.split()[0]} / {sys.platform} "
+            f"/ frozen={getattr(sys, 'frozen', False)}\n")
+        sys.__excepthook__(exc_type, exc, tb)           # 控制台行为保持不变
+
+    sys.excepthook = _hook
+
+
+def _log_startup() -> None:
+    """每个正常启动留一行：版本 / 数据目录 / 是否打包。排障时第一眼看的就是它。"""
+    import datetime
+    try:
+        from harpguide import __version__
+        from harpguide.config import data_dir
+        _write_log(
+            f"[{datetime.datetime.now():%Y-%m-%d %H:%M:%S}] 启动 v{__version__} "
+            f"frozen={getattr(sys, 'frozen', False)} data_dir={data_dir()}\n")
+    except Exception:
+        pass
+
+
 def _configure_high_dpi() -> None:
     """在创建 QApplication 之前确定高 DPI 策略（必须提前调用）。
 
@@ -32,6 +115,7 @@ def _configure_high_dpi() -> None:
 
 
 def main() -> int:
+    _install_excepthook()       # 越早越好：AppController 构造期的崩溃也要留痕
     _configure_high_dpi()
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(True)
@@ -43,6 +127,7 @@ def main() -> int:
     if "--selftest" in sys.argv:
         return _selftest(controller)
 
+    _log_startup()
     controller.start()
     return app.exec()
 
@@ -54,7 +139,7 @@ def _selftest(controller) -> int:
     from pathlib import Path
 
     from PySide6.QtCore import QElapsedTimer, QEvent, QPointF, Qt
-    from PySide6.QtGui import QMouseEvent
+    from PySide6.QtGui import QFontMetrics, QMouseEvent
     from harpguide.jianpu import parse_jianpu
     from harpguide.models import NoteType, Score
 
@@ -300,10 +385,14 @@ def _selftest(controller) -> int:
     from PySide6.QtGui import QPainter as _QP, QPixmap as _QPM
     _wf.push_judgment(0, "PERFECT", "#FFD54F")
     _wf.push_judgment(7, "MISS", "#FF5252")
+    _wf.set_combo(5, 300)
     _pm = _QPM(max(1, _wf.width()), max(1, _wf.height()))
     _pt = _QP(_pm)
     try:
-        _wf._paint_feedback(_pt)
+        _wf._paint_feedback(_pt, 1000.0)
+        # 预备拍期间（pos < 0）也要能安全绘制：此时连击不画 —— 连击数字在高度 10%、
+        # 倒计时在中间，瀑布流矮（默认 220px）时两者会叠在一起。
+        _wf._paint_feedback(_pt, -200.0)
     finally:
         _pt.end()
     print("[OK] 判定文字边界钳制（最左/最右列不被裁 + 浮层绘制不抛异常）")
@@ -837,6 +926,11 @@ def _selftest(controller) -> int:
         assert _merged["dup"].builtin is False, "用户曲目不该被标成内置只读"
         # 打包（frozen）场景才是最要命的：用户曲目在 EXE 同级、内建在 _MEIPASS 里，
         # 覆盖顺序一旦反了，用户改过的曲目每次启动都会被内置版本悄悄顶掉。
+        # 注意：真打包运行时 sys.frozen / sys._MEIPASS 本来就存在，
+        # 无条件 del 会把 EXE 的 import 机制打断（之后任何惰性 import 都炸），
+        # 所以必须按「原本有没有」来还原。
+        _had = (hasattr(sys, "frozen"), hasattr(sys, "_MEIPASS"))
+        _was = (getattr(sys, "frozen", None), getattr(sys, "_MEIPASS", None))
         sys.frozen = True
         sys._MEIPASS = str(_p)
         try:
@@ -844,8 +938,14 @@ def _selftest(controller) -> int:
             assert _frozen["dup"].name == "用户版", "打包模式下用户曲目被内建顶掉了"
             assert _frozen["dup"].builtin is False, "用户曲目不该被标成内置只读"
         finally:
-            del sys.frozen
-            del sys._MEIPASS
+            for _name, _existed, _old in (("frozen", _had[0], _was[0]),
+                                          ("_MEIPASS", _had[1], _was[1])):
+                if _existed:
+                    setattr(sys, _name, _old)
+                else:
+                    delattr(sys, _name)
+        assert (hasattr(sys, "frozen"), hasattr(sys, "_MEIPASS")) == _had, \
+            "模拟打包破坏了真实的 sys.frozen / sys._MEIPASS（打包后 EXE 的 import 机制会崩）"
     finally:
         _appmod.data_dir, _appmod.app_root = _orig_dirs
     shutil.rmtree(_u.parent, ignore_errors=True)
@@ -890,6 +990,177 @@ def _selftest(controller) -> int:
     for w in _pre_visible:
         w.show()
     print("[OK] v0.14.2 自查回归（设点按钮/悬浮球拖拽/切显隐/曲目覆盖顺序/id 唯一化/空曲目）")
+
+    # 14) 崩溃日志：打包 console=False 下异常必须留痕，且自身绝不能成为新的崩溃源
+    global _LOG_FILE
+    assert sys.excepthook is not sys.__excepthook__, "入口没安装异常钩子"
+    _logdir = _Path(tempfile.mkdtemp())
+    _old_log_file, _old_hook, _old_stderr = _LOG_FILE, sys.excepthook, sys.stderr
+    _LOG_FILE = _logdir / "harpguide.log"
+    sys.stderr = StringIO()             # 钩子会调 __excepthook__，别把 traceback 喷进自检输出
+    try:
+        def _boom_probe() -> None:
+            raise RuntimeError("自检模拟崩溃")
+
+        try:
+            _boom_probe()
+        except RuntimeError:
+            sys.excepthook(*sys.exc_info())
+        _txt = _LOG_FILE.read_text(encoding="utf-8")
+        assert "RuntimeError" in _txt and "自检模拟崩溃" in _txt, "崩溃没写进日志"
+        assert "_boom_probe" in _txt, "日志里没有崩溃位置，定位不了"
+        assert __version__ in _txt and "frozen=" in _txt, "日志应带版本与环境"
+
+        # Ctrl+C 不是崩溃，不记日志
+        _before = _LOG_FILE.read_text(encoding="utf-8")
+        try:
+            raise KeyboardInterrupt
+        except KeyboardInterrupt:
+            sys.excepthook(*sys.exc_info())
+        assert _LOG_FILE.read_text(encoding="utf-8") == _before, "Ctrl+C 不该写崩溃日志"
+
+        # 超过上限要轮转，日志不能无限长大
+        _LOG_FILE.write_text("x" * (LOG_MAX_BYTES + 1), encoding="utf-8")
+        try:
+            raise ValueError("轮转测试")
+        except ValueError:
+            sys.excepthook(*sys.exc_info())
+        assert (_logdir / "harpguide.log.1").exists(), "超限日志没轮转"
+        assert _LOG_FILE.stat().st_size < LOG_MAX_BYTES, "轮转后新日志应是空的"
+
+        # 日志路径不可写时必须静默失败，不能反过来再炸一次
+        (_logdir / "blocked").write_text("", encoding="utf-8")
+        _LOG_FILE = _logdir / "blocked" / "x.log"       # 父级是文件 -> mkdir 必失败
+        try:
+            raise OSError("日志路径不可写")
+        except OSError:
+            sys.excepthook(*sys.exc_info())
+
+        # 落盘位置：与 settings.json 同在 config/ 下；打包态还必须落在 EXE 同级
+        # （便携模式：日志要跟程序走，用户一眼找得到，也才能随程序一起挪走）
+        _LOG_FILE = None
+        _logp = _log_file()
+        assert _logp.parent.name == "config", _logp
+        if getattr(sys, "frozen", False) and data_dir() == _Path(sys.executable).parent:
+            assert _logp == _Path(sys.executable).parent / "config" / "harpguide.log", _logp
+    finally:
+        _LOG_FILE = _old_log_file
+        sys.excepthook = _old_hook
+        sys.stderr = _old_stderr
+        shutil.rmtree(_logdir, ignore_errors=True)
+    print("[OK] 崩溃日志（异常留痕/带版本环境/Ctrl+C 不记/超限轮转/不可写不反炸）")
+
+    # 15) 循环回绕＝新一遍：判定 / 连击 / 得分必须清零
+    #     回归的是「A-B 循环第二遍判定停摆」——回绕原先只是 position_ms() 里的一次
+    #     纯计算，没人知道新一遍开始了，上一遍的 _judged 继续生效，玩家按对不给分。
+    _orig_score = controller.engine.score
+    _orig_fb = controller.settings.hit_feedback
+    _loop_score = parse_jianpu("| 1 2 3 4 | 5 5 6 7 |", name="loop_probe", bpm=120)
+    controller.settings.hit_feedback = True
+    controller.engine.set_score(_loop_score)
+    controller.overlay.set_score(_loop_score)
+    controller.engine.set_loop_range(1000.0, 2500.0)      # A=2拍 B=5拍
+    _ins = [i for i, n in enumerate(_loop_score.notes)
+            if 1000.0 <= n.start_ms(120) < 2500.0]
+    assert len(_ins) == 3, _ins
+
+    def _play_one_pass() -> int:
+        """按顺序把区间内每个音符都按对一次，返回判定生效次数。"""
+        got = 0
+        for i in _ins:
+            n = _loop_score.notes[i]
+            before = controller._combo
+            controller._process_hits(n.start_ms(120) + 10, pressed=[n.key], held=set())
+            got += 1 if controller._combo > before else 0
+        return got
+
+    def _wrap_once() -> float:
+        """模拟播放推进越过 B 点（引擎内部回绕），返回回绕后的位置。"""
+        controller.engine._playing = True
+        controller.engine._offset_ms = 2501.0
+        controller.engine._elapsed.restart()
+        pos = controller.engine.position_ms()
+        controller.engine._playing = False
+        return pos
+
+    _passes = []
+    controller.engine.pass_finished.connect(lambda p: _passes.append(p))
+    # 与真实流程一致：区间定好后位置被拉到 A 点，从 A 点开始这一遍
+    assert controller.engine.position_ms() == 1000.0, controller.engine.position_ms()
+    controller._reset_feedback(controller.engine.position_ms())
+    # A 点之前的音符属于"这一遍吹不到"：必须已标记，否则每遍开头喷一串 MISS
+    assert {0, 1} <= controller._judged, sorted(controller._judged)
+    assert _play_one_pass() == 3, "第一遍应判定 3 次"
+    assert controller._combo == 3, controller._combo
+    _wrapped = _wrap_once()
+    assert len(_passes) == 1, f"回绕没发 pass_finished（{_passes}）"
+    assert 1000.0 <= _wrapped <= 1100.0, _wrapped
+    # 回绕只算一次：位置每帧被读多处，重复发信号会让判定状态反复清零
+    for _ in range(3):
+        controller.engine.position_ms()
+    assert len(_passes) == 1, f"同一个回绕发了 {len(_passes)} 次信号"
+    assert _passes[0] == _wrapped, (_passes, _wrapped)
+    assert controller._combo == 0 and controller._score == 0, \
+        (controller._combo, controller._score)
+    assert _play_one_pass() == 3, "循环第二遍判定停摆（本用例就是为它写的）"
+    assert controller._combo == 3, controller._combo
+
+    # 16) 顶栏：齿轮点得到 + 不压时长文字 + 长曲名省略
+    from harpguide.overlay import TopBar
+    _ov, _tb = controller.overlay, controller.overlay.topbar
+    _geo = _ov.size()
+    _was_visible = _ov.isVisible()
+    _ov.show()
+    _ov.resize(600, 480)                                  # 默认瀑布流 220px 的常用尺寸
+    controller.app.processEvents()
+    _fired: list = []
+    _tb.settings_clicked.connect(lambda: _fired.append(1))
+    # 齿轮在顶栏自己的坐标系里：点下去必须由顶栏处理（旧实现把命中判定写在
+    # OverlayWindow 上，而那个位置的最上层控件就是顶栏，父窗口根本收不到点击）
+    _gx = _tb.width() - 18
+    _gy = _tb.height() / 2
+    _hit = _ov.childAt(_tb.mapTo(_ov, _tb.rect().topLeft()).x() + int(_gx), int(_gy))
+    assert _hit is _tb or _tb.isAncestorOf(_hit), f"齿轮位置最上层是 {_hit!r}，点不到顶栏"
+    for _typ in (QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonRelease):
+        _pt = QPointF(_gx, _gy)
+        _tb.mousePressEvent(QMouseEvent(
+            _typ, _pt, _pt, Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier))
+    assert _fired, "点击齿轮没有打开设置"
+    assert _tb._drag_offset is None, "点齿轮不该同时开始拖动窗口"
+    # 悬停高亮
+    _tb.mouseMoveEvent(QMouseEvent(
+        QEvent.Type.MouseMove, QPointF(_gx, _gy), QPointF(_gx, _gy),
+        Qt.MouseButton.NoButton, Qt.MouseButton.NoButton,
+        Qt.KeyboardModifier.NoModifier))
+    assert _tb._hover_gear is True, "齿轮悬停没有反馈"
+    _tb.mouseMoveEvent(QMouseEvent(
+        QEvent.Type.MouseMove, QPointF(40.0, _gy), QPointF(40.0, _gy),
+        Qt.MouseButton.NoButton, Qt.MouseButton.NoButton,
+        Qt.KeyboardModifier.NoModifier))
+    assert _tb._hover_gear is False, "移开齿轮后悬停态没复位"
+    # 齿轮不能压在时长文字上（末位被吃掉）
+    _time_right = _tb.time_label.geometry().right()
+    assert _gx - TopBar.GEAR_R > _time_right, \
+        f"齿轮左沿 {_gx - TopBar.GEAR_R:.0f} 压住时长文字右边界 {_time_right}"
+    _tb.set_score_name("夜空中最亮的星（超长曲名测试）" * 4)
+    assert _tb.name_label.text().endswith("…"), _tb.name_label.text()
+    _assert_w = QFontMetrics(_tb.name_label.font()).horizontalAdvance(
+        _tb.name_label.text())
+    assert _assert_w <= TopBar.NAME_MAX_W, f"省略后仍超宽 {_assert_w}"
+    _tb.set_score_name(_orig_score.name)
+    _ov.resize(_geo)
+    _ov._save_timer.stop()                               # 别把自检的临时尺寸写进配置
+    if not _was_visible:
+        _ov.hide()
+    print("[OK] v0.14.3 循环回绕清零 / 顶栏齿轮点击与留位 / 长曲名省略")
+
+    # 块尾还原：引擎、设置、判定状态
+    controller.settings.hit_feedback = _orig_fb
+    controller.overlay.waterfall.set_feedback_enabled(_orig_fb)
+    controller.engine.set_score(_orig_score)
+    controller.overlay.set_score(_orig_score)
+    controller._reset_feedback(controller.engine.position_ms())
 
     # 收尾：把设置路径还原成用户真实配置文件（自检全程只写临时文件）
     controller.settings._path = _real_settings_path

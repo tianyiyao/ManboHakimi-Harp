@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import ctypes
 import ctypes.wintypes as wt
+import math
 import sys
 from typing import Callable, Optional
 
 from PySide6.QtCore import QPoint, QPointF, QRectF, Qt, QTimer, Signal
-from PySide6.QtGui import (QBrush, QColor, QFont, QGuiApplication,
+from PySide6.QtGui import (QBrush, QColor, QFont, QFontMetrics, QGuiApplication,
                            QLinearGradient, QPainter, QPen)
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
@@ -41,13 +42,20 @@ HTBOTTOMLEFT, HTBOTTOMRIGHT = 16, 17
 
 
 class TopBar(QWidget):
-    """顶部信息条：双击标题无操作；拖动移动窗口；齿轮发信号。"""
+    """顶部信息条：拖动移动窗口；右上角齿轮＝设置按钮。"""
     settings_clicked = Signal()
     drag_moved = Signal(QPoint)
+
+    GEAR_R = 7.6            # 齿轮视觉半径
+    GEAR_HIT = 26.0         # 齿轮命中区边长（比图形大一圈，鼠标好点）
+    NAME_MAX_W = 240        # 曲名最大宽度，超出用省略号
+    GEAR_RESERVE = 34       # 右侧给齿轮留出的宽度（含间距）
 
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.setFixedHeight(44)
+        self.setMouseTracking(True)     # 齿轮悬停高亮需要无按键的 move 事件
+        self.setCursor(Qt.CursorShape.SizeAllCursor)   # 顶栏＝拖拽把手
         self._drag_offset: Optional[QPoint] = None
         self._hover_gear = False
 
@@ -77,7 +85,8 @@ class TopBar(QWidget):
         self.offset_label.setStyleSheet(f"color:{THEME.text_secondary}; background:transparent;")
 
         lay = QHBoxLayout(self)
-        lay.setContentsMargins(16, 4, 10, 4)
+        # 右边距 = 齿轮预留宽度：否则最右侧的时长文字会被齿轮压在下面（末位看不见）
+        lay.setContentsMargins(16, 4, self.GEAR_RESERVE, 4)
         lay.setSpacing(14)
         lay.addWidget(self.name_label)
         lay.addStretch(1)
@@ -86,6 +95,28 @@ class TopBar(QWidget):
         lay.addWidget(self.transpose_label)
         lay.addWidget(self.offset_label)
         lay.addWidget(self.time_label)
+
+    # ---- 曲名 ----
+    def set_score_name(self, name: str) -> None:
+        """设置曲名：过长时省略号收尾。
+
+        顶栏是固定高度的单行条，长曲名不省略就会把 BPM / 时长挤出窗口。
+        """
+        full = f"♪ {name}"
+        fm = QFontMetrics(self.name_label.font())
+        self.name_label.setText(
+            fm.elidedText(full, Qt.TextElideMode.ElideRight, int(self.NAME_MAX_W)))
+        self.name_label.setToolTip(name)        # 悬停看完整曲名
+
+    # ---- 齿轮（设置）按钮 ----
+    def _gear_center(self) -> QPointF:
+        return QPointF(self.width() - 18.0, self.height() / 2)
+
+    def _gear_rect(self) -> QRectF:
+        """齿轮命中区。绘制与命中判定共用同一处几何，避免两边各写一份对不上。"""
+        c = self._gear_center()
+        return QRectF(c.x() - self.GEAR_HIT / 2, c.y() - self.GEAR_HIT / 2,
+                      self.GEAR_HIT, self.GEAR_HIT)
 
     # ---- 命中偏移提示 ----
     def set_offset(self, avg_ms: Optional[float] = None, count: int = 0) -> None:
@@ -129,18 +160,36 @@ class TopBar(QWidget):
         self.transpose_label.setText(text)
         self.transpose_label.setStyleSheet(f"color:{color}; background:transparent;")
 
-    # ---- 拖动移动窗口 ----
+    # ---- 拖动移动窗口 / 齿轮点击 ----
     def mousePressEvent(self, e) -> None:  # noqa: N802
-        if e.button() == Qt.MouseButton.LeftButton:
-            self._drag_offset = e.globalPosition().toPoint() - self.window().pos()
+        if e.button() != Qt.MouseButton.LeftButton:
+            return
+        if self._gear_rect().contains(e.position()):
+            # 齿轮是按钮而不是拖拽把手：按下即开设置，且不启动拖动
+            self.settings_clicked.emit()
+            return
+        self._drag_offset = e.globalPosition().toPoint() - self.window().pos()
 
     def mouseMoveEvent(self, e) -> None:  # noqa: N802
         if self._drag_offset is not None:
             self.drag_moved.emit(
                 e.globalPosition().toPoint() - self._drag_offset)
+            return
+        hover = self._gear_rect().contains(e.position())
+        if hover != self._hover_gear:
+            self._hover_gear = hover
+            self.setCursor(Qt.CursorShape.PointingHandCursor if hover
+                           else Qt.CursorShape.SizeAllCursor)
+            self.update()
 
     def mouseReleaseEvent(self, e) -> None:  # noqa: N802
         self._drag_offset = None
+
+    def leaveEvent(self, e) -> None:  # noqa: N802
+        if self._hover_gear:
+            self._hover_gear = False
+            self.update()
+        self.setCursor(Qt.CursorShape.SizeAllCursor)
 
     def paintEvent(self, event) -> None:  # noqa: N802
         p = QPainter(self)
@@ -152,17 +201,16 @@ class TopBar(QWidget):
         p.drawEllipse(QPointF(cx + 2.5, cy + 4), 2.5, 2.5)
         p.drawEllipse(QPointF(cx + 7.5, cy + 3), 2.5, 2.5)
         p.drawLine(QPointF(cx + 10, cy - 8), QPointF(cx + 5, cy - 9))
-        # 齿轮
-        gx = self.width() - 18
-        gy = self.height() / 2
-        p.setPen(QPen(QColor(THEME.text_secondary), 1.6))
-        p.drawEllipse(QPointF(gx, gy), 3.5, 3.5)
+        # 齿轮：悬停时加粗高亮，明确"这里可以点"
+        gear = self._gear_center()
+        p.setPen(QPen(QColor(THEME.primary if self._hover_gear else THEME.text_secondary),
+                      2.0 if self._hover_gear else 1.6))
+        p.drawEllipse(gear, 3.5, 3.5)
         for a in range(8):
-            import math
             ang = a * math.pi / 4
             p.drawLine(
-                QPointF(gx + 5.2 * math.cos(ang), gy + 5.2 * math.sin(ang)),
-                QPointF(gx + 7.6 * math.cos(ang), gy + 7.6 * math.sin(ang)))
+                QPointF(gear.x() + 5.2 * math.cos(ang), gear.y() + 5.2 * math.sin(ang)),
+                QPointF(gear.x() + 7.6 * math.cos(ang), gear.y() + 7.6 * math.sin(ang)))
 
     def mouseDoubleClickEvent(self, e) -> None:  # noqa: N802
         pass
@@ -361,7 +409,7 @@ class OverlayWindow(QWidget):
 
     # ---- 外部接口 ----
     def set_score(self, score: Score) -> None:
-        self.topbar.name_label.setText(f"♪ {score.name}")
+        self.topbar.set_score_name(score.name)
         self.topbar.bpm_label.setText(f"BPM {score.bpm:g}")
         self.waterfall.set_score(score)
         self.keys.set_score(score)
@@ -678,11 +726,3 @@ class OverlayWindow(QWidget):
 
     def leaveEvent(self, e) -> None:  # noqa: N802
         self.topbar.setCursor(Qt.CursorShape.ArrowCursor)
-
-    def mousePressEvent(self, e) -> None:  # noqa: N802
-        # 点击右上角齿轮区域打开设置
-        if e.button() == Qt.MouseButton.LeftButton:
-            gx = self.width() - 18
-            gy = 44 / 2 + 6
-            if abs(e.position().x() - gx) < 14 and abs(e.position().y() - gy) < 14:
-                self.topbar.settings_clicked.emit()

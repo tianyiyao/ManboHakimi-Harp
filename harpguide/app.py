@@ -65,6 +65,8 @@ class AppController(QObject):
         self.overlay.move(self.settings.window_x, self.settings.window_y)
         self.overlay._ensure_on_screen()
         self.overlay.topbar.settings_clicked.connect(self.toggle_settings)
+        # 一整遍播完回绕到起点（整曲循环 / A-B 循环）＝新一遍开始，判定与得分清零
+        self.engine.pass_finished.connect(self._on_pass_finished)
         self.overlay.set_click_through(self.settings.click_through)
         self.overlay.progress.seek_requested.connect(self._seek_ratio)
         # 命中反馈 HUD 显隐跟随设置
@@ -382,6 +384,11 @@ class AppController(QObject):
         if not ok:
             self._loop_b_ms = None
             self.engine.clear_loop_range()
+        else:
+            # 区间定好后判定线可能已经被拉回 A 点（引擎内部 seek）：把 A 点之前的
+            # 音符标记为已判定。这里只"补标记"，绝不清 `_judged`——
+            # 玩家刚按中的音符也在里面，清掉会让它变成漏音。
+            self._sync_judged(self.engine.position_ms())
         self._refresh_loop_marks()
         self._persist_loop_range()
         self.panel.set_loop_status(*self._loop_status())
@@ -610,6 +617,17 @@ class AppController(QObject):
         self.overlay.set_judge_offset(None)
         self._sync_judged(pos)
 
+    def _on_pass_finished(self, pos: float) -> None:
+        """循环回绕到起点：这一遍结束，回到干净状态开始下一遍。
+
+        不清的话有两个后果，都是玩家直接看得见的：
+        1. 上一遍的 `_judged` 仍然生效，第二遍按键匹配不到任何音符 -> 判定停摆，
+           连击和得分冻在上一遍的值上，循环练习等于只练了第一遍；
+        2. 连击数字会跨在预备拍倒计时上（数字在高度 10%、倒计时在中间，
+           瀑布流矮的时候两者叠在一起）。
+        """
+        self._reset_feedback(pos)
+
     def _reset_all(self) -> None:
         """重置播放位置 + 清空命中反馈（托盘菜单"重置"用）。"""
         self.engine.reset()
@@ -630,14 +648,22 @@ class AppController(QObject):
         """把当前位置之前（已经完全滑过判定线）的音符标记为已判定。
 
         用于重置 / 跳转 / 切曲后，避免它们被当成"漏音"瞬间刷一堆 MISS。
+        `MISS_WINDOW_MS` 口径与 `_process_hits` 的漏音判定完全一致。
+
+        设有 A-B 区间时，**区间起点之前的音符也要一并标记**：它们不在这一遍的
+        练习范围里，玩家从 A 点开始练、永远吹不到它们，不标记就会在每遍开头
+        被喷一串 MISS（玩家没按错却断连击）。
         """
         score = self.engine.score
         bpm = score.bpm
-        jpos = self._jpos(pos)
+        deadline = self._jpos(pos) - MISS_WINDOW_MS
+        rng = self.engine.loop_range
+        if rng is not None:
+            deadline = max(deadline, rng[0])
         for i, n in enumerate(score.notes):
             if n.type is NoteType.REST:
                 continue
-            if n.start_ms(bpm) < jpos - MISS_WINDOW_MS:
+            if n.start_ms(bpm) < deadline:
                 self._judged.add(i)
 
     def _process_hits(self, pos: float, pressed: Optional[List[str]] = None,

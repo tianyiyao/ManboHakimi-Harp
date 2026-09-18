@@ -187,10 +187,10 @@ class WaterfallWidget(QWidget):
         self._paint_notes(p, pos, bpm)
         self._paint_judge_line(p, pos, bpm)
         self._paint_count_in(p, pos)
-        self._paint_feedback(p)
+        self._paint_feedback(p, pos)
 
     # ---- 命中反馈渲染（PERFECT/GREAT/GOOD/MISS + 连击 + 得分） ----
-    def _paint_feedback(self, p: QPainter) -> None:
+    def _paint_feedback(self, p: QPainter, pos: float) -> None:
         if not self._feedback_on:
             return
         judge_y = self._judge_y()
@@ -225,7 +225,9 @@ class WaterfallWidget(QWidget):
         self._popups = alive
 
         # 连击数字：命中后弹跳放大，静置一段时间后变淡
-        if self._combo >= 2:
+        # 预备拍（pos < 0）期间不画：连击在高度 10%、倒计时在中间，
+        # 瀑布流矮的时候（默认 220px，10% + 字号正好落进倒计时区间）两者会叠在一起。
+        if self._combo >= 2 and pos >= 0:
             idle = self._real_ms - self._combo_born
             alpha = int(210 * max(0.22, 1.0 - idle / COMBO_HOLD_MS))
             pop = max(0.0, 1.0 - idle / 150.0)          # 刚命中时 1 -> 0

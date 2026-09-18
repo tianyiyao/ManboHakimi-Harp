@@ -21,6 +21,7 @@ class PlaybackEngine(QObject):
 
     state_changed = Signal(bool)         # playing?
     loop_range_changed = Signal()        # A-B 区间变更（设置/清除/切曲）
+    pass_finished = Signal(float)        # 一整遍播完回绕到起点（参数＝回绕后的位置 ms）
 
     def __init__(self, score: Score, speed: float = 1.0, loop: bool = False,
                  count_in_beats: int = 4, parent: Optional[QObject] = None):
@@ -128,21 +129,33 @@ class PlaybackEngine(QObject):
         if self._loop_range is not None and self._playing:
             a, b = self._loop_range
             if pos > b and b > a:
-                span = b - a
-                pos = a + (pos - b) % span
-            return pos
+                return self._wrap(a + (pos - b) % (b - a))
 
         if total > 0 and pos >= total:
             if self.loop:
                 # 循环：从起点（不含预备拍）重新开始
-                pos = self.start_ms() + (pos - total) % max(total - self.start_ms(), 1.0)
-            else:
-                pos = total
-                if self._playing:
-                    self._playing = False
-                    self._finished = True
-                    self._offset_ms = total
-                    self.state_changed.emit(False)
+                start = self.start_ms()
+                return self._wrap(
+                    start + (pos - total) % max(total - start, 1.0))
+            pos = total
+            if self._playing:
+                self._playing = False
+                self._finished = True
+                self._offset_ms = total
+                self.state_changed.emit(False)
+        return pos
+
+    def _wrap(self, pos: float) -> float:
+        """回绕到新一遍：把位置基准前移并通知 `pass_finished`。
+
+        回绕原先只在 position_ms() 里"算一次"：位置每帧被多处读取（渲染 / 判定 /
+        调性提示），纯计算没有副作用，于是没有任何人知道"新一遍开始了"——上一遍的
+        已判定音符仍然生效，A-B 循环第二遍开始后玩家按对也不给分（判定像停摆）。
+        现在回绕只发生一次：位置基准落成 `_offset_ms` + 重启计时器，并发出信号。
+        """
+        self._offset_ms = pos
+        self._elapsed.restart()
+        self.pass_finished.emit(pos)
         return pos
 
     def beat_ms(self) -> float:
