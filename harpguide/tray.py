@@ -7,11 +7,11 @@ Windows 习惯：用户从任务栏右下角的托盘图标管理后台工具。
 """
 from __future__ import annotations
 
-from typing import Callable, Optional
+from typing import Optional
 
-from PySide6.QtCore import QObject, Qt, Signal
+from PySide6.QtCore import QObject, Signal
 from PySide6.QtGui import QAction, QIcon
-from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
+from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 
 
 class TrayController(QObject):

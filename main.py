@@ -659,6 +659,7 @@ def _selftest(controller) -> int:
     assert not shot.isNull() and shot.width() >= sb.HANDLE_W - 1
     print("[OK] 曲目侧边栏（悬停展开 / 缩进保留把手 / 列表迁出设置面板）")
 
+
     # 三个辅助窗口都能渲染（面板改可滚动布局后的回归保护）
     for w in (panel, controller.cal_panel, ed):
         shot = w.grab()
@@ -755,6 +756,140 @@ def _selftest(controller) -> int:
         assert tray._menu is None
         tray.shutdown()
         print("[OK] 系统托盘（当前环境无托盘，回退模式无异常）")
+
+    # 13) v0.14.2 自查回归：把这一轮扫出来的 6 个 BUG 钉成用例
+    #      （1) A/B 设点按钮信号断裂 2) 悬浮球拖动误展开 3) 球模式恢复带出完整浮窗
+    #       4) 同名曲目覆盖方向反了 5) 中文曲名 id 塌缩成 user_song 6) _states 空解引用）
+    from io import StringIO
+    from pathlib import Path as _Path
+
+    from PySide6.QtWidgets import QPushButton
+    from harpguide.models import Note as _Note
+
+    # 记下当前可见性，块尾精确还原，免得影响后面几个 grab() 渲染用例
+    _pre_visible = [w for w in (controller.overlay, panel, controller.ball)
+                    if w.isVisible()]
+
+    # 1) 「设 A 点为当前」按钮：面板 -> 控制器链路必须是通的
+    b_a = next(b for b in panel.findChildren(QPushButton)
+               if b.text().startswith("设 A 点"))
+    controller._loop_a_ms = None
+    _err = StringIO()
+    _old_stderr, sys.stderr = sys.stderr, _err
+    try:
+        b_a.click()
+    finally:
+        sys.stderr = _old_stderr
+    assert "AttributeError" not in _err.getvalue(), f"按钮槽函数抛异常: {_err.getvalue()}"
+    assert controller._loop_a_ms is not None, "按钮点了没反应：信号没人接"
+    controller._clear_loop_range()
+
+    # 2) 悬浮球：拖动后松手不算单击，原地点击才算
+    from harpguide.floating_ball import FloatingBall
+    ball = FloatingBall()
+    clicks = []
+    ball.expand_requested.connect(lambda: clicks.append(1))
+
+    def _me(kind, local, glob):
+        return QMouseEvent(kind, QPointF(*local), QPointF(*glob),
+                           Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton,
+                           Qt.KeyboardModifier.NoModifier)
+
+    ball.move(500, 500)
+    ball.mousePressEvent(_me(QEvent.Type.MouseButtonPress, (36, 36), (536, 536)))
+    ball.mouseMoveEvent(_me(QEvent.Type.MouseMove, (136, 136), (636, 636)))
+    ball.mouseReleaseEvent(_me(QEvent.Type.MouseButtonRelease, (136, 136), (636, 636)))
+    assert not clicks, "拖动悬浮球后松手不应展开浮窗"
+    ball.move(300, 300)
+    ball.mousePressEvent(_me(QEvent.Type.MouseButtonPress, (36, 36), (336, 336)))
+    ball.mouseReleaseEvent(_me(QEvent.Type.MouseButtonRelease, (36, 36), (336, 336)))
+    assert len(clicks) == 1, "原地单击悬浮球应展开浮窗"
+    ball.deleteLater()
+
+    # 3) 悬浮球模式下 隐藏 -> 再显示：只能把球还回来
+    controller.show_overlay_mode()
+    controller.toggle_ball()
+    controller.toggle_visible()
+    controller.toggle_visible()
+    assert controller.ball.isVisible() and not controller.overlay.isVisible(), \
+        "球模式恢复时把完整浮窗也带出来了"
+    controller.show_overlay_mode()
+    controller.toggle_visible()
+    controller.toggle_visible()
+    assert controller.overlay.isVisible(), "完整模式恢复后浮窗应可见"
+
+    # 4) 同名曲目：用户目录必须胜出（打包 EXE 下内建在 _MEIPASS，顺序反了就顶掉用户曲目）
+    import harpguide.app as _appmod
+    from harpguide.models import Score as _Sc
+    _u = _Path(tempfile.mkdtemp()) / "user"
+    _p = _Path(tempfile.mkdtemp()) / "packed"
+    (_u / "scores").mkdir(parents=True)
+    (_p / "scores").mkdir(parents=True)
+    _Sc(id="dup", name="用户版", bpm=100,
+        notes=[_Note("Z", NoteType.TAP, 1.0, 0.0)]).save(_u / "scores" / "dup.json")
+    _Sc(id="dup", name="打包版", bpm=100,
+        notes=[_Note("X", NoteType.TAP, 1.0, 0.0)]).save(_p / "scores" / "dup.json")
+    _orig_dirs = (_appmod.data_dir, _appmod.app_root)
+    _appmod.data_dir, _appmod.app_root = (lambda: _u), (lambda: _p)
+    try:
+        _merged = {s.id: s for s in controller._load_scores()}
+        assert _merged["dup"].name == "用户版", "同名曲目被内建版本顶掉了"
+        assert _merged["dup"].builtin is False, "用户曲目不该被标成内置只读"
+        # 打包（frozen）场景才是最要命的：用户曲目在 EXE 同级、内建在 _MEIPASS 里，
+        # 覆盖顺序一旦反了，用户改过的曲目每次启动都会被内置版本悄悄顶掉。
+        sys.frozen = True
+        sys._MEIPASS = str(_p)
+        try:
+            _frozen = {s.id: s for s in controller._load_scores()}
+            assert _frozen["dup"].name == "用户版", "打包模式下用户曲目被内建顶掉了"
+            assert _frozen["dup"].builtin is False, "用户曲目不该被标成内置只读"
+        finally:
+            del sys.frozen
+            del sys._MEIPASS
+    finally:
+        _appmod.data_dir, _appmod.app_root = _orig_dirs
+    shutil.rmtree(_u.parent, ignore_errors=True)
+    shutil.rmtree(_p.parent, ignore_errors=True)
+
+    # 5) 曲名 -> id：中文名不能再塌缩成同一个 user_song（否则另存为静默覆盖前一首）
+    from harpguide.editor import sanitize_id, unique_score_id
+    _i1, _i2 = sanitize_id("小星星"), sanitize_id("大星星")
+    assert _i1 != _i2 and _i1 == sanitize_id("小星星"), (_i1, _i2)
+    assert _i1 != "user_song", "中文曲名的 id 应带稳定哈希后缀，而不是塌缩成 user_song"
+    _tmpdir = _Path(tempfile.mkdtemp())
+    _Sc(id=_i2, name="别的歌", bpm=100, notes=[]).save(_tmpdir / f"{_i2}.json")
+    assert unique_score_id("大星星", _tmpdir) != _i2, "另存为不能覆盖别人的曲目文件"
+    _Sc(id=_i2, name="大星星", bpm=100, notes=[]).save(_tmpdir / f"{_i2}.json")
+    assert unique_score_id("大星星", _tmpdir) == _i2, "同一首歌重存应沿用原 id"
+    shutil.rmtree(_tmpdir, ignore_errors=True)
+
+    # 6) 空曲目下取状态机不应炸（None 检查必须写在解引用之前）
+    _kw = controller.overlay.keys
+    _saved_score, _kw._score = _kw._score, None
+    try:
+        assert _kw._states() == {}, "无曲目时应返回空状态表"
+    finally:
+        _kw._score = _saved_score
+
+    # 7) 内置曲目只读：控制器拒绝重命名 / 删除，侧边栏菜单项置灰
+    _fake = _Sc(id="b1", name="内置测试", bpm=90, notes=[], builtin=True)
+    controller.scores = controller.scores + [_fake]
+    sb.set_scores(controller.scores, "b1")
+    assert sb._score_buttons[-1].property("builtin") is True, "内置标记没传到侧边栏按钮"
+    controller._rename_score("b1", "改个名")
+    controller._delete_score("b1")
+    assert not (data_dir() / "scores" / "b1.json").exists(), \
+        "内置曲目不该在用户目录留下副本"
+    controller.scores = [s for s in controller.scores if s.id != "b1"]
+
+    # 块尾还原：侧边栏曲目表 + 三个窗口的可见性，别影响后面的渲染用例
+    sb.set_scores(controller.scores, controller.engine.score.id)
+    for w in (controller.overlay, panel, controller.ball):
+        if w not in _pre_visible:
+            w.hide()
+    for w in _pre_visible:
+        w.show()
+    print("[OK] v0.14.2 自查回归（设点按钮/悬浮球拖拽/切显隐/曲目覆盖顺序/id 唯一化/空曲目）")
 
     # 收尾：把设置路径还原成用户真实配置文件（自检全程只写临时文件）
     controller.settings._path = _real_settings_path

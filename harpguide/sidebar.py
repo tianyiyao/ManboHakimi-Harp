@@ -130,7 +130,8 @@ class ScoreSidebar(QWidget):
         head.addWidget(self.count_label)
         lay.addLayout(head)
 
-        hint = QLabel("右键曲目可编辑 / 重命名 / 删除", objectName="hint")
+        hint = QLabel("右键曲目可编辑 / 重命名 / 删除\n（内置曲目只读，可「另存为」自己的版本）",
+                      objectName="hint")
         hint.setWordWrap(True)
         lay.addWidget(hint)
 
@@ -185,6 +186,8 @@ class ScoreSidebar(QWidget):
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.setProperty("fullName", s.name)
             btn.setProperty("bpmText", f"BPM {s.bpm:g}")
+            # 内置曲目只读：右键菜单据此置灰重命名 / 删除
+            btn.setProperty("builtin", bool(getattr(s, "builtin", False)))
             btn.setToolTip(f"{s.name}\nBPM {s.bpm:g}")
             btn.clicked.connect(lambda _=False, sid=s.id: self._on_pick(sid))
             btn.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -223,10 +226,18 @@ class ScoreSidebar(QWidget):
 
     def _score_menu(self, pos: QPoint, score_id: str, name: str, btn: QPushButton) -> None:
         self._collapse_timer.stop()
+        is_builtin = bool(btn.property("builtin"))
         menu = QMenu(self)
         act_edit = QAction("在编辑器中编辑", menu)
         act_rename = QAction("重命名…", menu)
         act_delete = QAction("删除（仅用户曲目）", menu)
+        if is_builtin:
+            # 内置曲目打包在 EXE 内部，文件删不掉也改不了：置灰并说明原因，
+            # 免得点了没反应（重命名旧逻辑会在用户目录留一份副本 -> 列表出现两条）
+            act_rename.setEnabled(False)
+            act_delete.setEnabled(False)
+            act_rename.setToolTip("内置曲目只读，请在编辑器里「另存为」自定义曲目")
+            act_delete.setToolTip("内置曲目只读，无法删除")
         act_edit.triggered.connect(lambda: self.edit_requested.emit(score_id))
         act_rename.triggered.connect(lambda: self._rename_dialog(score_id, name))
         act_delete.triggered.connect(lambda: self._delete_confirm(score_id, name))
@@ -234,6 +245,11 @@ class ScoreSidebar(QWidget):
         menu.addAction(act_rename)
         menu.addSeparator()
         menu.addAction(act_delete)
+        if is_builtin:
+            tip = QAction("（内置曲目只读：编辑后可「另存为」自己的版本）", menu)
+            tip.setEnabled(False)
+            menu.addSeparator()
+            menu.addAction(tip)
         menu.exec(btn.mapToGlobal(pos))
         # 菜单关掉后鼠标多半已经不在抽屉上了
         if self.rect().contains(self.mapFromGlobal(QCursor.pos())):

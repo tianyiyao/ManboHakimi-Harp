@@ -15,6 +15,7 @@
 """
 from __future__ import annotations
 
+import hashlib
 import re
 from pathlib import Path
 from typing import List, Optional
@@ -70,9 +71,43 @@ UNDO_LIMIT = 100
 
 
 def sanitize_id(name: str) -> str:
-    """从曲名生成安全文件名。"""
+    """从曲名生成安全文件名（同时在曲名互不相同时保证 id 互不相同）。
+
+    纯 ASCII 曲名直接用可读的 slug；一旦曲名里没有 ASCII 字符（中文曲名是常态），
+    旧的兜底 `return slug or "user_song"` 会让**所有**中文曲名塌缩成同一个
+    `user_song` —— 于是「另存为」的默认文件名总是 scores/user_song.json、
+    「重命名」也会写到同一个文件上，前一首自编曲被静默覆盖（真丢数据）。
+    这里改成按曲名取稳定哈希后缀：同名同 id（覆盖是预期），不同名一定不同 id。
+    """
     slug = re.sub(r"[^0-9A-Za-z_]+", "_", name).strip("_").lower()
-    return slug or "user_song"
+    if slug and len(slug) <= 40:
+        return slug
+    digest = hashlib.md5(name.encode("utf-8")).hexdigest()[:8]
+    if slug:                       # ASCII 够长：可读前缀 + 哈希，避免超长/截断撞车
+        return f"{slug[:40]}_{digest}"
+    return f"song_{digest}"
+
+
+def unique_score_id(name: str, folder: Path) -> str:
+    """给「新建 / 另存为」挑一个不覆盖别人的曲目 id。
+
+    目标文件不存在 -> 直接用；
+    已存在且里面就是同名的这首 -> 视为同一首歌，覆盖是预期行为；
+    已存在但是别的曲目 -> 追加 _2 / _3 …，绝不静默覆盖别人的文件。
+    """
+    base = sanitize_id(name)
+    candidate, n = base, 2
+    while True:
+        path = folder / f"{candidate}.json"
+        if not path.exists():
+            return candidate
+        try:
+            if Score.load(path).name == name:
+                return candidate
+        except Exception:               # 读不出来（损坏/非本格式）就当它是别人的文件
+            pass
+        candidate = f"{base}_{n}"
+        n += 1
 
 
 class EditorGrid(QWidget):
@@ -793,10 +828,13 @@ class EditorWindow(QWidget):
 
     def _save(self, folder: Optional[Path] = None) -> str:
         name = self.name_edit.text().strip() or "未命名"
-        score_id = self._source_id or sanitize_id(name)
-        score = self.build_score(score_id)
         folder = folder or (data_dir() / "scores")
         folder.mkdir(parents=True, exist_ok=True)
+        # 已在编辑某首曲目 -> 沿用它的 id（保存=覆盖自己）；
+        # 新曲目 -> 挑一个不撞别人的 id，否则「小星星」和「大星星」的
+        # 旧逻辑都会写成 scores/user_song.json，后者静默吃掉前者。
+        score_id = self._source_id or unique_score_id(name, folder)
+        score = self.build_score(score_id)
         path = folder / f"{score_id}.json"
         score.save(path)
         self._source_id = score_id

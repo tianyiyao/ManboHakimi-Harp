@@ -10,11 +10,10 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
-from PySide6.QtCore import QObject, QTimer, Qt, Signal
+from PySide6.QtCore import QObject, QTimer
 from PySide6.QtWidgets import QApplication
 
-from .calibration import (CalibrationData, KeyGeom, default_geometries,
-                          resolution_key)
+from .calibration import CalibrationData, resolution_key
 from .calibration_panel import CalibrationPanel
 from .config import Settings, app_root, data_dir
 from .editor import EditorWindow
@@ -136,6 +135,9 @@ class AppController(QObject):
         self.panel.lookahead_changed.connect(self._set_lookahead)
         self.panel.loop_range_set.connect(self._panel_set_loop_range)
         self.panel.loop_range_cleared.connect(self._clear_loop_range)
+        # 「设 A 点 / 设 B 点」按钮：面板拿不到引擎位置，只发请求，
+        # 真正取值在 _panel_set_point 里完成（此前该信号无人连接 = 按钮点了没反应）
+        self.panel.set_current_point_requested.connect(self._panel_set_point)
         self.panel.lyrics_changed.connect(self._set_show_lyrics)
         self.panel.hotkeys_hint_changed.connect(self._set_hotkeys_hint)
         self.panel.auto_transpose_changed.connect(self._set_auto_transpose)
@@ -180,6 +182,7 @@ class AppController(QObject):
         self._clock_ms = 0.0
 
         self._hidden = False
+        self._hidden_restore: List = []   # 隐藏前正在显示的窗口，恢复时精确还原
         self._ball_mode = False
 
         # 恢复上次为该曲目设置的 A-B 区间
@@ -188,20 +191,33 @@ class AppController(QObject):
 
     # ---- 曲目 ----
     def _load_scores(self) -> List[Score]:
-        """合并加载：EXE 同级 scores/（用户曲目优先）+ 打包内建 scores（同名 id 去重）。"""
-        candidates = [data_dir() / "scores"]
+        """合并加载：EXE 同级 scores/（用户曲目优先）+ 打包内建 scores（同名 id 去重）。
+
+        顺序规则是「**先到先得**」：用户目录排在前面，所以同名时用户曲目胜出。
+        旧实现是后到的覆盖先到的，与注释声称的"用户目录同名曲目覆盖内置"正好相反——
+        开发态两个目录其实是同一个（data_dir() == app_root()），所以问题被掩盖了；
+        打包成 EXE 后用户目录是 EXE 同级、内建在 _MEIPASS 里，于是**用户在编辑器里
+        改过并保存的同名曲目，每次启动都会被内置版本顶掉**。
+
+        `builtin` 标记只在「内建目录确实不是用户目录」时才置位，供侧边栏把
+        重命名 / 删除置灰（EXE 内部的文件改不了）。
+        """
+        user_scores_dir = data_dir() / "scores"
+        candidates: List[tuple] = [(user_scores_dir, False)]
         if getattr(sys, "frozen", False):
             meipass = Path(getattr(sys, "_MEIPASS", ""))
-            candidates.append(meipass / "scores")
+            candidates.append((meipass / "scores", True))
         else:
-            candidates.append(app_root() / "scores")
+            candidates.append((app_root() / "scores", True))
         merged: dict = {}
         order: List[str] = []
-        for folder in candidates:
+        for folder, is_builtin_dir in candidates:
             for s in load_scores(folder):
-                if s.id not in merged:
-                    order.append(s.id)
-                merged[s.id] = s          # 用户目录同名曲目覆盖内置
+                if s.id in merged:
+                    continue                       # 先到先得：用户目录优先
+                s.builtin = bool(is_builtin_dir and folder != user_scores_dir)
+                order.append(s.id)
+                merged[s.id] = s
         return [merged[i] for i in order]
 
     @staticmethod
@@ -407,18 +423,29 @@ class AppController(QObject):
 
     # ---- 曲目管理 ----
     def _rename_score(self, score_id: str, new_name: str) -> None:
-        from .editor import sanitize_id
+        from .editor import sanitize_id, unique_score_id
         score = self._pick_score(score_id)
         if not score or not new_name.strip():
             return
         new_name = new_name.strip()
+        scores_dir = data_dir() / "scores"
+        old_path = scores_dir / f"{score_id}.json"
+        # 内置曲目只读：文件在 EXE 内部（_MEIPASS）或安装目录，删不掉也改不了。
+        # 旧逻辑仍然往用户目录写一份新文件，于是原曲目还在 -> 列表里出现两条
+        # 名字不同的"同一首歌"。这里直接拒绝，由侧边栏把菜单项置灰并说明原因。
+        if getattr(score, "builtin", False) or not old_path.exists():
+            print(f"[Score] 内置曲目只读，不能重命名: {score_id}")
+            return
         new_id = sanitize_id(new_name)
-        old_path = data_dir() / "scores" / f"{score_id}.json"
+        new_path = scores_dir / f"{new_id}.json"
+        if new_id != score_id and new_path.exists():
+            # 撞上别人的曲目文件：另挑一个 id，绝不覆盖
+            new_id = unique_score_id(new_name, scores_dir)
+            new_path = scores_dir / f"{new_id}.json"
         score.name = new_name
         score.id = new_id
-        new_path = data_dir() / "scores" / f"{new_id}.json"
         try:
-            if old_path.exists() and old_path != new_path:
+            if old_path != new_path:
                 old_path.unlink()
             score.save(new_path)
         except OSError as e:
@@ -433,8 +460,9 @@ class AppController(QObject):
         print(f"[Score] 已重命名为 {new_name}")
 
     def _delete_score(self, score_id: str) -> None:
+        score = self._pick_score(score_id)
         path = data_dir() / "scores" / f"{score_id}.json"
-        if not path.exists():
+        if (score is not None and getattr(score, "builtin", False)) or not path.exists():
             print(f"[Score] 内置曲目不可删除: {score_id}")
             return
         try:
@@ -725,14 +753,24 @@ class AppController(QObject):
             self.panel.show()
 
     def toggle_visible(self) -> None:
-        self._hidden = not self._hidden
-        for w in (self.overlay, self.panel, self.ball):
-            if self._hidden:
-                w.hide()
-            else:
-                if w is self.ball and not self._ball_mode:
-                    continue
+        """切换浮窗显隐（F2 热键 / 托盘菜单）。
+
+        隐藏前记下"当时谁在显示"，恢复时按记录精确还原。旧实现固定 show
+        三件套，于是悬浮球模式下「隐藏 -> 再显示」会把完整浮窗一起弹出来
+        （球和窗同屏，且浮窗盖住球）。
+        """
+        if self._hidden:
+            self._hidden = False
+            self._hidden_restore = getattr(self, "_hidden_restore", None)
+            targets = self._hidden_restore or [self.overlay]
+            for w in targets:
                 w.show()
+            return
+        self._hidden_restore = [w for w in (self.overlay, self.panel, self.ball)
+                                if w.isVisible()]
+        self._hidden = True
+        for w in (self.overlay, self.panel, self.ball):
+            w.hide()
 
     def toggle_ball(self) -> None:
         if self._ball_mode:

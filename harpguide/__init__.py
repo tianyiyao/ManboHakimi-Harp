@@ -5,4 +5,4 @@
 不注入游戏进程。所有交互仅限本浮窗自身。
 """
 APP_NAME = "ManboHakimi-Harp"
-__version__ = "0.14.1"
+__version__ = "0.14.2"

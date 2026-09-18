@@ -104,6 +104,9 @@ class Score:
     keymap: List[str] = field(default_factory=lambda: list(DEFAULT_KEYMAP))
     notes: List[Note] = field(default_factory=list)
     lyrics: List[LyricLine] = field(default_factory=list)
+    # 运行时标记（不写盘、不参与比较）：True = 来自打包内建目录，
+    # 文件在 EXE 内部或只读位置，无法重命名 / 删除。由 app._load_scores 注入。
+    builtin: bool = field(default=False, compare=False, repr=False)
 
     def total_beats(self) -> float:
         if not self.notes:

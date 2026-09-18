@@ -24,7 +24,7 @@ from __future__ import annotations
 import ctypes
 import ctypes.wintypes as wt
 import sys
-from typing import Callable, Dict, List, Optional
+from typing import Dict, List
 
 from PySide6.QtCore import QAbstractNativeEventFilter, QObject, Signal
 

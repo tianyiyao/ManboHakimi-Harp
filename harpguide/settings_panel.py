@@ -88,6 +88,7 @@ class SettingsPanel(QWidget):
     judge_offset_changed = Signal(int)
     loop_range_set = Signal(float, float)  # A 拍, B 拍
     loop_range_cleared = Signal()
+    set_current_point_requested = Signal(str)  # "a" / "b"：用当前播放位置设点
 
     PANEL_W = 380
     PANEL_H = 660
@@ -193,8 +194,11 @@ class SettingsPanel(QWidget):
         row_loop.setSpacing(6)
         b_a = _btn("设 A 点为当前")
         b_b = _btn("设 B 点并循环", primary=True)
-        b_a.clicked.connect(lambda: self.set_point_requested.emit("a"))
-        b_b.clicked.connect(lambda: self.set_point_requested.emit("b"))
+        # 注意：这里必须走 _on_set_current，它发的是下面声明过的
+        # set_current_point_requested。旧代码发的是 self.set_point_requested —— 那个
+        # 信号从未定义过，点按钮会直接抛 AttributeError（按钮完全没反应）。
+        b_a.clicked.connect(lambda: self._on_set_current("a"))
+        b_b.clicked.connect(lambda: self._on_set_current("b"))
         row_loop.addWidget(b_a)
         row_loop.addWidget(b_b)
         lay.addLayout(row_loop)
@@ -449,8 +453,6 @@ class SettingsPanel(QWidget):
             self.set_current_point_requested.emit("a")
         else:
             self.set_current_point_requested.emit("b")
-
-    set_current_point_requested = Signal(str)
 
     def set_loop_status(self, a_beat, b_beat) -> None:
         """更新 A-B 状态显示与拍数输入框。"""

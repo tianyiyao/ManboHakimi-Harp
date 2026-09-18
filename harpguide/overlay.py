@@ -12,7 +12,7 @@ import ctypes.wintypes as wt
 import sys
 from typing import Callable, Optional
 
-from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt, QTimer, Signal
+from PySide6.QtCore import QPoint, QPointF, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import (QBrush, QColor, QFont, QGuiApplication,
                            QLinearGradient, QPainter, QPen)
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget

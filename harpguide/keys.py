@@ -181,9 +181,13 @@ class KeyHintWidget(QWidget):
 
     # ---- 状态计算 ----
     def _states(self) -> Dict[str, KeyState]:
-        states = {k: KeyState.IDLE for k in self._score.keymap}  # type: ignore
+        # 注意顺序：None 检查必须在解引用 _score 之前。
+        # 旧写法先取 self._score.keymap 再判断 if not self._score，一旦没有曲目
+        # 就是 'NoneType' object has no attribute 'keymap'（paintEvent 里的
+        # 前置判断恰好挡住了它，但任何直接调用都会炸）。
         if not self._score:
-            return states
+            return {}
+        states = {k: KeyState.IDLE for k in self._score.keymap}
         bpm = self._score.bpm
         beat_ms = 60000.0 / bpm
         lead_ms = self._settings.preparation_lead_beats * beat_ms

@@ -36,6 +36,8 @@ class FloatingBall(QWidget):
         self._real_ms = 0.0
         self._dragging = False
         self._drag_offset = None
+        self._press_global = None              # 按下时的全局坐标（判断是否只是单击）
+        self._moved = False
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
     def set_note_char(self, char: Optional[str]) -> None:
@@ -51,22 +53,39 @@ class FloatingBall(QWidget):
         self.update()
 
     # ---- 交互 ----
+    # 移动超过这个像素数就认定为「拖拽」，松手时不再触发展开
+    DRAG_THRESHOLD = 4
+
     def mousePressEvent(self, e) -> None:  # noqa: N802
         if e.button() == Qt.MouseButton.LeftButton:
             self._dragging = True
-            self._drag_offset = e.globalPosition().toPoint() - self.pos()
+            pos = e.globalPosition().toPoint()
+            self._drag_offset = pos - self.pos()
+            self._press_global = pos
+            self._moved = False
 
     def mouseMoveEvent(self, e) -> None:  # noqa: N802
-        if self._dragging and self._drag_offset is not None:
-            self.move(e.globalPosition().toPoint() - self._drag_offset)
+        if not (self._dragging and self._drag_offset is not None):
+            return
+        pos = e.globalPosition().toPoint()
+        if self._press_global is not None:
+            delta = pos - self._press_global
+            if abs(delta.x()) + abs(delta.y()) > self.DRAG_THRESHOLD:
+                self._moved = True
+        self.move(pos - self._drag_offset)
 
     def mouseReleaseEvent(self, e) -> None:  # noqa: N802
-        if self._dragging:
-            moved = (e.globalPosition().toPoint() - (
-                self._drag_offset + self.pos()) if self._drag_offset else False)
-            self._dragging = False
-            self._drag_offset = None
-            # 位移很小视为单击 -> 展开
+        if not self._dragging:
+            return
+        # 只有「没怎么动」才算单击 -> 展开。
+        # 旧实现里 moved 算出来却没用（还被写成 bool 表达式），
+        # 于是拖完悬浮球一松手就会把完整浮窗也弹出来。
+        was_click = not self._moved
+        self._dragging = False
+        self._drag_offset = None
+        self._press_global = None
+        self._moved = False
+        if was_click:
             self.expand_requested.emit()
 
     # ---- 绘制 ----
