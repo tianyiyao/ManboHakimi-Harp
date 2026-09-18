@@ -353,7 +353,7 @@ def _selftest(controller) -> int:
     print("[OK] 播放引擎（count-in 起点为负）")
 
     # 3) 琴键状态机：在长按中段应返回 ACTIVE_HOLD / NEAR_RELEASE
-    from harpguide.keys import KeyHintWidget, KeyState
+    from harpguide.keys import KeyState
     from harpguide.hintbar import HOTKEY_HINTS
     widget = controller.overlay.keys
     score = controller.engine.score
@@ -382,7 +382,7 @@ def _selftest(controller) -> int:
     print("[OK] 浮窗屏幕适配（启动自动 clamp 到可用区域）")
 
     # 5) 校准模式：几何持久化 + 自由布局渲染 + 瀑布流对齐
-    from harpguide.calibration import (CalibrationData, KeyGeom,
+    from harpguide.calibration import (CalibrationData,
                                        default_geometries, resolution_key)
     keys = controller.overlay.keys
     waterfall = controller.overlay.waterfall
