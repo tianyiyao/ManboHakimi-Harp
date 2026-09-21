@@ -42,4 +42,5 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon='assets/icon.ico',
+    version='version_info.txt',    # Windows 文件属性中的版本号/版权信息
 )

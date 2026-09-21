@@ -2,6 +2,13 @@
 
 三角洲行动口风琴**纯视觉**练习辅助浮窗。
 
+> **本项目仅供学习交流使用，请勿用于破坏游戏公平性或违反游戏服务条款的用途。**
+> 它不模拟任何键鼠输入、不读取游戏画面或内存、不注入游戏进程，只做一件事：告诉你怎么按。
+
+> **v0.14.4**：补齐开源工程规范 —— 新增 **MIT 许可证**与依赖清单 `requirements.txt`，
+> 并给 EXE 写入 Windows 版本资源（右键属性即可看到版本号与版权信息）。
+> 功能与 v0.14.3 完全一致，仅工程侧收口。
+>
 > **v0.14.3**：**循环练习真正能循环了** —— A-B / 整曲循环回到起点时判定与得分清零，
 > 第二遍开始按下去就照常给分（此前第二遍之后判定停摆，连击和得分冻在第一遍）。
 > 顺带修掉顶栏齿轮点不动、时长末位被齿轮压住、超长曲名挤坏顶栏三处交互问题；
@@ -38,6 +45,38 @@
 | **曲目侧边栏（悬停展开）** | **曲目侧边栏（缩进只留把手）** |
 | ![侧边栏展开](preview/sidebar_in_overlay.png) | ![侧边栏收起](preview/sidebar_in_overlay_collapsed.png) |
 
+## 下载
+
+**方式一：GitHub Release**
+
+| 文件 | 说明 |
+|:--|:--|
+| [`ManboHakimi-Harp-v0.14.4.exe`](https://github.com/tianyiyao/ManboHakimi-Harp/releases/latest) | 单文件，约 43 MB，Windows 10 / 11 |
+
+**方式二：百度网盘（国内镜像，GitHub 下载慢时用这个）**
+
+- 链接：`（待补充）`
+- 提取码：`（待补充）`
+
+<details>
+<summary><b>下载后建议校验一下文件完整性</b>（点开）</summary>
+
+在下载文件所在目录打开命令行，执行：
+
+```
+certutil -hashfile ManboHakimi-Harp-v0.14.4.exe SHA256
+```
+
+输出应等于下面这串（v0.14.4）：
+
+```
+73e1f24adcaff690c9574a83456f0b852f88dac8e3d4a0007370092d59b1ddde
+```
+
+不一致说明下载过程中文件损坏（或被人替换过），请重新下载。网盘常见传输损坏，这一步能省掉很多"程序打不开"的困惑。
+
+</details>
+
 ## 安装（Windows）
 
 ```
@@ -46,7 +85,7 @@
 3. 阅读并勾选风险声明 → 进入主界面
 ```
 
-单文件 EXE（约 46MB），**无需安装 Python 或任何运行时**。
+单文件 EXE（约 43MB），**无需安装 Python 或任何运行时**。
 首次运行会在 EXE 同级目录生成 `config/settings.json` 和 `scores/`（用户曲目存放处）。
 **任务栏右下角会出现托盘图标**，左键切显隐、右键菜单管理（详见下方）。
 
@@ -361,10 +400,11 @@ ManboHakimi-Harp 现已完整同步这套机制：
 
 ```bash
 # 需要 Python 3.13
-pip install PySide6 PyInstaller
-python main.py              # 开发模式运行
-python main.py --selftest   # 离屏自检
-build.bat                   # 打包为 dist\ManboHakimi-Harp.exe
+pip install -r requirements.txt   # 运行依赖（PySide6）
+pip install PyInstaller           # 打包 EXE 时额外需要
+python main.py                    # 开发模式运行
+python main.py --selftest         # 离屏自检（会打印 SELFTEST PASSED）
+build.bat                         # 打包为 dist\ManboHakimi-Harp.exe
 ```
 
 ## 目录结构
@@ -372,6 +412,9 @@ build.bat                   # 打包为 dist\ManboHakimi-Harp.exe
 ```
 ManboHakimi-Harp/
 ├── main.py               入口（--selftest 离屏自检）
+├── LICENSE               MIT 许可证
+├── requirements.txt      依赖清单（实测 Python 3.13.14 + PySide6 6.11.2）
+├── version_info.txt      EXE 版本资源（双击属性可见版本号/版权）
 ├── harpguide/
 │   ├── models.py         乐谱/音符数据模型（tap/hold/rest）
 │   ├── jianpu.py         简谱解析器（含长按语法）
@@ -399,3 +442,20 @@ ManboHakimi-Harp/
 ├── assets/icon.ico       EXE 图标
 └── build.bat             一键打包
 ```
+
+## 许可证与使用立场
+
+本项目以 **MIT License** 开源，见 [LICENSE](LICENSE)：你可以自由使用、修改、分发，
+包括用于商业项目。
+
+需要说明的是，标准开源协议无法附加"禁止某类用途"的条款——一旦附加限制，
+协议本身即告失效。因此这里用一段声明表明项目立场，与许可证并行：
+
+| | |
+|:--|:--|
+| ✅ 允许 | 学习、研究、二次开发、改界面、调判定、提 PR |
+| ❌ 禁止 | 用于破坏游戏公平性、绕过反作弊、自动化代打，或任何违反游戏服务条款的用途 |
+
+**内置曲库说明**：`scores/` 中的流行曲目均为**主旋律简化版**（单声部、口风琴音域适配），
+仅供个人学习与练习使用，版权归各自权利人所有，请勿用于商业传播。
+
