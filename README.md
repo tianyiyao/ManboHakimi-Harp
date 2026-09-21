@@ -5,6 +5,12 @@
 > **本项目仅供学习交流使用，请勿用于破坏游戏公平性或违反游戏服务条款的用途。**
 > 它不模拟任何键鼠输入、不读取游戏画面或内存、不注入游戏进程，只做一件事：告诉你怎么按。
 
+> **v0.15.0**：**自定义曲目不用再手写 JSON** —— 编辑器新增「**粘贴简谱**」：从网上抄来
+> 一段数字简谱粘进去就能变成曲目（全角符号与顿号自动转半角，**认不出来的写法会被直接
+> 点名**，而不是像以前那样静默丢音）；素材段落支持"追加到末尾"并可 Ctrl+Z 撤销。
+> 托盘新增「**刷新曲库**」与「**打开曲目文件夹…**」：手工放进 `scores/` 的曲目刷一下
+> 就能看到，改过的当前曲目会无缝换入、播放位置不丢，不必再重启程序。
+>
 > **v0.14.4**：补齐开源工程规范 —— 新增 **MIT 许可证**与依赖清单 `requirements.txt`，
 > 并给 EXE 写入 Windows 版本资源（右键属性即可看到版本号与版权信息）。
 > 功能与 v0.14.3 完全一致，仅工程侧收口。
@@ -47,16 +53,9 @@
 
 ## 下载
 
-**方式一：GitHub Release**
-
 | 文件 | 说明 |
 |:--|:--|
-| [`ManboHakimi-Harp-v0.14.4.exe`](https://github.com/tianyiyao/ManboHakimi-Harp/releases/latest) | 单文件，约 43 MB，Windows 10 / 11 |
-
-**方式二：百度网盘（国内镜像，GitHub 下载慢时用这个）**
-
-- 链接：`（待补充）`
-- 提取码：`（待补充）`
+| [`ManboHakimi-Harp-v0.15.0.exe`](https://github.com/tianyiyao/ManboHakimi-Harp/releases/latest) | 单文件，约 43 MB，Windows 10 / 11 |
 
 <details>
 <summary><b>下载后建议校验一下文件完整性</b>（点开）</summary>
@@ -64,13 +63,13 @@
 在下载文件所在目录打开命令行，执行：
 
 ```
-certutil -hashfile ManboHakimi-Harp-v0.14.4.exe SHA256
+certutil -hashfile ManboHakimi-Harp-v0.15.0.exe SHA256
 ```
 
-输出应等于下面这串（v0.14.4）：
+输出应等于下面这串（v0.15.0）：
 
 ```
-73e1f24adcaff690c9574a83456f0b852f88dac8e3d4a0007370092d59b1ddde
+b74bd739ee91da9500626c5af126c25ea572df14e3a9211481b16ec429bbb0ca
 ```
 
 不一致说明下载过程中文件损坏（或被人替换过），请重新下载。网盘常见传输损坏，这一步能省掉很多"程序打不开"的困惑。

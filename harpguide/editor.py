@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import re
 from pathlib import Path
 from typing import List, Optional
@@ -23,11 +24,13 @@ from typing import List, Optional
 from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import (QColor, QFont, QKeySequence, QLinearGradient,
                            QPainter, QPen, QPolygonF, QShortcut)
-from PySide6.QtWidgets import (QComboBox, QDialog, QFileDialog, QHBoxLayout, QLabel,
-                               QLineEdit, QMessageBox, QPushButton,
-                               QScrollArea, QSpinBox, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFileDialog,
+                               QHBoxLayout, QLabel, QLineEdit, QMessageBox,
+                               QPlainTextEdit, QPushButton, QScrollArea,
+                               QSpinBox, QVBoxLayout, QWidget)
 
 from .config import data_dir
+from .jianpu import parse_jianpu, scan_tokens
 from .models import DEFAULT_KEYMAP, KEY_LABELS, Note, NoteType, Score
 from .theme import THEME
 
@@ -142,6 +145,30 @@ class EditorGrid(QWidget):
         self._update_size()
         self.update()
         self.changed.emit()
+
+    def set_notes(self, notes: List[Note], append: bool = False) -> int:
+        """用一批音符替换（或追加到）编辑区内容，返回写入了几个音符。
+
+        先记快照再改，所以这一下是可撤销的——粘错一段谱子不必手工清空重画。
+        追加时从现有内容末尾起算并对齐到整拍：两段之间留一个明确的空档，
+        比让前一段的尾音和后一段的头直接连上更好读。
+        """
+        if not notes:
+            return 0
+        self._snapshot()
+        if append and self._notes:
+            base = float(math.ceil(max(n.beat + n.duration for n in self._notes)))
+            self._notes.extend(
+                Note(n.key, n.type, n.duration, n.beat + base, n.accidental)
+                for n in notes)
+        else:
+            self._notes = self._copy_all(notes)
+        self._selection = []
+        self._mode = ""
+        self._update_size()
+        self.update()
+        self.changed.emit()
+        return len(notes)
 
     def notes(self) -> List[Note]:
         return sorted(
@@ -563,6 +590,134 @@ def _ghost_btn(text: str) -> QPushButton:
     return b
 
 
+# ---- 粘贴简谱 ----
+# 对话框里的语法提示：用户抄到的是数字，卡住的地方 90% 就在这几行。
+JIANPU_HINT = ("1–7 = 音级 · 8 或 1' = 高音 1 · #4 = 升半音 · 3- = 长按 2 拍 · "
+               "0 = 休止 · 0.5:4 = 八分音符 · | = 小节线（可省略）")
+
+# 「填入示例」用的《小星星》：公有领域，且大多数人一眼能对上节奏，
+# 拿它比对"抄来的谱子对不对"最直观。
+EXAMPLE_JIANPU = ("| 1 1 5 5 | 6 6 5- | 4 4 3 3 | 2 2 1- |\n"
+                  "| 5 5 4 4 | 3 3 2- | 5 5 4 4 | 3 3 2- |")
+
+
+class JianpuPasteDialog(QDialog):
+    """「粘贴简谱」：把一段数字简谱解析成音符，替换或追加到编辑区。
+
+    EXE 里原本没有简谱解析入口（`jianpu.py` 只挂在开发脚本 `gen_scores.py` 上），
+    普通玩家从网上抄到一段 "1 2 3 5 3 2 1" 只能一个音一个音点进卷帘。这个对话框
+    做两件事：把文本变成音符；把**识别不了的 token 明确列出来**——解析器对不认识的
+    token 是静默跳过的，不列出来用户只会看到"少了个音"，然后一个音一个音去对数。
+    """
+
+    def __init__(self, parent: Optional[QWidget] = None, default_name: str = "",
+                 default_bpm: int = 90, has_notes: bool = False):
+        super().__init__(parent)
+        self.setWindowTitle("粘贴简谱")
+        self.setMinimumSize(600, 380)
+
+        self.setStyleSheet(f"""
+            QDialog {{ background: {THEME.surface}; color: {THEME.text_primary};
+                font-family: '{THEME.font_sans}'; }}
+            QLineEdit, QSpinBox, QPlainTextEdit {{
+                background: {THEME.surface_alt}; color: {THEME.text_primary};
+                border: 1px solid {THEME.border}; border-radius: 6px;
+                padding: 5px 8px; selection-background-color: {THEME.primary}; }}
+            QPlainTextEdit {{ font-family: 'Consolas', 'Courier New', monospace;
+                font-size: 13px; }}
+            QLabel#hint {{ color: {THEME.text_secondary}; font-size: 11px; }}
+            QLabel#bad {{ color: {THEME.danger}; font-size: 11px; }}
+            QCheckBox {{ color: {THEME.text_primary}; font-size: 12px; }}""")
+
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(14, 12, 14, 12)
+        lay.setSpacing(8)
+        lay.addWidget(QLabel("从网上抄来的数字简谱，直接粘进下面这个框：", objectName="hint"))
+
+        self.text_edit = QPlainTextEdit()
+        self.text_edit.setPlaceholderText("例如：| 1 1 5 5 | 6 6 5- |")
+        self.text_edit.setMinimumHeight(130)
+        lay.addWidget(self.text_edit, 1)
+
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        row.addWidget(QLabel("曲名", objectName="hint"))
+        self.name_edit = QLineEdit(default_name or "新曲目")
+        self.name_edit.setFixedWidth(190)
+        row.addWidget(self.name_edit)
+        row.addWidget(QLabel("BPM", objectName="hint"))
+        self.bpm_spin = QSpinBox()
+        self.bpm_spin.setRange(40, 240)
+        self.bpm_spin.setValue(int(default_bpm))
+        row.addWidget(self.bpm_spin)
+        self.append_cb = QCheckBox("追加到现有内容末尾")
+        self.append_cb.setEnabled(bool(has_notes))
+        self.append_cb.setToolTip("编辑区还有音符时，可以把这段接在后面"
+                                  if has_notes else "编辑区是空的，没有可追加的内容")
+        row.addWidget(self.append_cb)
+        row.addStretch(1)
+        lay.addLayout(row)
+
+        lay.addWidget(QLabel(JIANPU_HINT, objectName="hint"))
+        self.preview = QLabel("", objectName="hint")
+        self.preview.setWordWrap(True)
+        lay.addWidget(self.preview)
+
+        btns = QHBoxLayout()
+        btns.setSpacing(8)
+        btn_example = _ghost_btn("填入示例")
+        btn_example.clicked.connect(lambda: self.text_edit.setPlainText(EXAMPLE_JIANPU))
+        btns.addWidget(btn_example)
+        btns.addStretch(1)
+        btn_cancel = _ghost_btn("取消")
+        btn_cancel.clicked.connect(self.reject)
+        btns.addWidget(btn_cancel)
+        self.btn_ok = _primary_btn("载入编辑区")
+        self.btn_ok.clicked.connect(self.accept)
+        btns.addWidget(self.btn_ok)
+        lay.addLayout(btns)
+
+        # 信号连接放在控件都建好之后：textChanged 会立刻回调 _refresh_preview
+        self.text_edit.textChanged.connect(self._refresh_preview)
+        self.bpm_spin.valueChanged.connect(self._refresh_preview)
+        self._refresh_preview()
+
+    # ---- 实时预检 ----
+    def _refresh_preview(self) -> None:
+        """边打字边报数：识别了多少音符 / 大约多长 / 哪些 token 认不出来。"""
+        text = self.text_edit.toPlainText()
+        ok, bad = scan_tokens(text)
+        parts = []
+        if ok:
+            seconds = parse_jianpu(
+                text, bpm=float(self.bpm_spin.value())).total_ms() / 1000.0
+            parts.append(f"识别 {len(ok)} 个音符")
+            parts.append(f"约 {seconds:.0f} 秒")
+        else:
+            parts.append("还没有可识别的音符")
+        if bad:
+            uniq = list(dict.fromkeys(bad))
+            shown = " ".join(uniq[:6]) + (" …" if len(uniq) > 6 else "")
+            parts.append(f"认不出来：{shown}")
+        self.preview.setObjectName("bad" if bad else "hint")
+        self.preview.setText(" · ".join(parts))
+        # 改了 objectName 要重新套一遍样式表，否则颜色不会跟着变
+        self.preview.style().unpolish(self.preview)
+        self.preview.style().polish(self.preview)
+        self.btn_ok.setEnabled(bool(ok))
+
+    # ---- 结果 ----
+    def result_score(self) -> Score:
+        """按当前输入构造 Score（对话框 accept 之后调用）。"""
+        return parse_jianpu(
+            self.text_edit.toPlainText(),
+            name=self.name_edit.text().strip() or "新曲目",
+            bpm=float(self.bpm_spin.value()))
+
+    def append_mode(self) -> bool:
+        return self.append_cb.isEnabled() and self.append_cb.isChecked()
+
+
 class EditorWindow(QWidget):
     """乐谱编辑器主窗口（标准窗框，可自由移动缩放）。"""
 
@@ -647,6 +802,8 @@ class EditorWindow(QWidget):
         self.btn_paste = _ghost_btn("粘贴")
         self.btn_delete = _ghost_btn("删除选中")
         self.btn_clear = _ghost_btn("清空")
+        btn_jianpu = _ghost_btn("粘贴简谱")
+        btn_jianpu.setToolTip("把从网上抄来的数字简谱直接粘进来（例如 1 2 3 5 3 2 1）")
         btn_import = _ghost_btn("导入 JSON")
         btn_export = _ghost_btn("导出 JSON")
         self.btn_undo.clicked.connect(self._do_undo)
@@ -655,10 +812,11 @@ class EditorWindow(QWidget):
         self.btn_paste.clicked.connect(self.grid_paste)
         self.btn_delete.clicked.connect(self.grid_delete)
         self.btn_clear.clicked.connect(self.grid_clear)
+        btn_jianpu.clicked.connect(self.paste_jianpu)
         btn_import.clicked.connect(self.import_json)
         btn_export.clicked.connect(self.export_json)
         for w in (self.btn_undo, self.btn_redo, self.btn_copy, self.btn_paste,
-                  self.btn_delete, self.btn_clear, btn_import, btn_export):
+                  self.btn_delete, self.btn_clear, btn_jianpu, btn_import, btn_export):
             tools.addWidget(w)
         tools.addStretch(1)
         lay.addLayout(tools)
@@ -809,6 +967,37 @@ class EditorWindow(QWidget):
             return None
         print(f"[Editor] 已导出 {path}")
         return path
+
+    # ---- 粘贴简谱 ----
+    def paste_jianpu(self) -> Optional[Score]:
+        """「粘贴简谱」按钮：弹对话框，确认后把解析结果落到编辑区。"""
+        cur_name = self.name_edit.text().strip()
+        dlg = JianpuPasteDialog(self, default_name=cur_name or "新曲目",
+                                default_bpm=self.bpm_spin.value(),
+                                has_notes=bool(self.grid.notes()))
+        if _exec_topmost(dlg) != QDialog.DialogCode.Accepted:
+            return None
+        return self.apply_jianpu(dlg.result_score(), append=dlg.append_mode())
+
+    def apply_jianpu(self, score: Score, append: bool = False) -> Optional[Score]:
+        """把解析好的曲目落到编辑区（对话框确认后调用；自检直接调这里）。
+
+        「换曲名 = 存成新曲目」：编辑区在编辑某首曲目时 `_source_id` 就是它的 id，
+        保存会覆盖那个文件。粘进一段新谱子却沿用原曲名，多半是"重写这一首"；
+        改了曲名则视为新建，否则会把《小星星》的文件内容换成《起风了》。
+        """
+        if not score.notes:
+            return None
+        cur_name = self.name_edit.text().strip()
+        self.name_edit.setText(score.name)
+        self.bpm_spin.setValue(int(round(score.bpm)))
+        if not append and score.name != cur_name:
+            self._source_id = ""          # 曲名变了 -> 当新曲目，不覆盖原文件
+        self.grid.set_notes(score.notes, append=append)
+        self._sync_buttons()
+        print(f"[Editor] 粘贴简谱：{len(score.notes)} 个音符"
+              f"{'（追加）' if append else ''}")
+        return score
 
     # ---- 载入 / 保存 ----
     def load_score(self, score: Score) -> None:

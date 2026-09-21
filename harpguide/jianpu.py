@@ -85,11 +85,54 @@ def _parse_token(token: str) -> Note | None:
     )
 
 
+# ---- 文本规范化 / 预检 ----
+# 从网页或聊天软件里抄来的谱子常常夹着全角数字与顿号。原样喂给解析器，它们只会被
+# 当成"不认识的 token"静默丢掉，现象就是"少了一个音"、无从排查。
+# 这里统一转成半角空白分隔；`,` 本来就不是合法 token（高音 1 写 8 或 1'），
+# 一并当分隔符，容忍 "1,1,5,5" 这种逗号分句的写法。
+_FULLWIDTH = str.maketrans({
+    "０": "0", "１": "1", "２": "2", "３": "3", "４": "4",
+    "５": "5", "６": "6", "７": "7", "８": "8", "９": "9",
+    "＃": "#", "－": "-", "｜": "|", "：": ":", "　": " ",
+    "、": " ", "，": " ", ",": " ", "；": " ", ";": " ", "\t": " ",
+})
+
+
+def normalize_jianpu(text: str) -> str:
+    """全角数字 / 中文标点 -> 半角分隔（解析与预检共用）。"""
+    return text.translate(_FULLWIDTH)
+
+
+def scan_tokens(text: str) -> tuple[List[str], List[str]]:
+    """扫描文本，返回 (可识别的 token, 无法识别的 token)。
+
+    parse_jianpu 对不认识的 token 是**静默跳过**的：抄来一段谱子只要有一个错别字
+    或全角符号，结果就是"少一个音"而毫无提示——这是最费时间的坑。
+    「粘贴简谱」对话框用这个函数把问题 token 明着列出来。
+    """
+    ok: List[str] = []
+    bad: List[str] = []
+    has_note = False
+    for raw in normalize_jianpu(re.sub(r"//[^\n]*", "", text)).split():
+        if _BARLINE.fullmatch(raw):
+            continue
+        if _DASH_ONLY.fullmatch(raw):
+            # 延音线必须跟在音符后面；出现在最前面说明抄漏了前面的音符
+            (ok if has_note else bad).append(raw)
+            continue
+        if _parse_token(raw) is None:
+            bad.append(raw)
+        else:
+            ok.append(raw)
+            has_note = True
+    return ok, bad
+
+
 def parse_jianpu(text: str, name: str = "未命名", bpm: float = 80.0,
                  score_id: str = "") -> Score:
     """把简谱文本解析为 Score。"""
-    # 去掉行注释
-    text = re.sub(r"//[^\n]*", "", text)
+    # 去行注释 + 全角转半角
+    text = normalize_jianpu(re.sub(r"//[^\n]*", "", text))
     notes: List[Note] = []
     beat = 0.0
     for raw in text.split():

@@ -172,6 +172,8 @@ class AppController(QObject):
         self.tray.reset_requested.connect(self._reset_all)
         self.tray.open_calibration_requested.connect(self.toggle_calibration)
         self.tray.open_editor_requested.connect(self.toggle_editor)
+        self.tray.reload_scores_requested.connect(self._reload_scores_from_tray)
+        self.tray.open_scores_folder_requested.connect(self._open_scores_folder)
         self.tray.quit_requested.connect(self.shutdown)
         # 引擎播放状态 → 托盘菜单"开始/暂停"勾选同步
         self.engine.state_changed.connect(self.tray.set_playing)
@@ -488,6 +490,56 @@ class AppController(QObject):
             self.scores = self._builtin_scores()
             self._select_score(self.scores[0].id)
         print(f"[Score] 已删除 {score_id}")
+
+    def reload_scores(self) -> int:
+        """重新扫描曲目目录，把磁盘上的改动载进来（托盘「刷新曲库」）。
+
+        原先手工放进 scores/ 的曲目只能重启程序才会出现。这里同时处理「当前曲目
+        被改过」的情况：磁盘上那份和内存里这份不一致时无缝换入，并保留播放位置与
+        播放状态——用户改完 JSON 想立刻听效果，不该被拉回开头、也不必重启。
+        """
+        cur = self.engine.score
+        self.scores = self._load_scores() or self._builtin_scores()
+        if cur.id == "__preview__":
+            # 试听中的临时曲目不在列表里：只刷新列表，不打断正在播放的试听
+            self.overlay.sidebar.set_scores(self.scores, self.settings.last_score_id)
+            return len(self.scores)
+        fresh = self._pick_score(cur.id)
+        if fresh is None:
+            # 当前曲目在磁盘上被删了 / 改了 id：退回第一首，从头开始
+            self._select_score(self.scores[0].id)
+            return len(self.scores)
+        if fresh.notes != cur.notes or fresh.bpm != cur.bpm or fresh.name != cur.name:
+            pos = self.engine.position_ms()
+            was_playing = self.engine.playing
+            self.engine.set_score(fresh)
+            self.overlay.set_score(fresh)
+            self._reset_feedback(pos)      # 换了音符集合，判定基准必须重来
+            self._restore_loop_range(fresh)
+            if pos > 0:
+                self.engine.seek(pos)
+            if was_playing:
+                self.engine.play()
+            print(f"[Score] 已重新载入 {fresh.name}")
+        self.overlay.sidebar.set_scores(self.scores, cur.id)
+        return len(self.scores)
+
+    def _reload_scores_from_tray(self) -> None:
+        """托盘「刷新曲库」：刷完给一句反馈，否则用户不知道到底有没有生效。"""
+        count = self.reload_scores()
+        self.tray.show_message("曲目已刷新", f"共 {count} 首曲目")
+
+    def _open_scores_folder(self) -> None:
+        """在资源管理器里打开曲目目录（用户手工放 / 备份 JSON 的地方）。"""
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
+        folder = data_dir() / "scores"
+        try:
+            folder.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            print(f"[Score] 曲目目录不可用: {e}")
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder)))
 
     # ---- 热键 ----
     def _on_hotkey(self, name: str) -> None:

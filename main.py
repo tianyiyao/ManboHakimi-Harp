@@ -164,7 +164,7 @@ def _selftest(controller) -> int:
     from harpguide.config import _LEGACY_APP_NAME, _migrate_legacy_dir, data_dir
     assert APP_NAME == "ManboHakimi-Harp", APP_NAME
     assert _LEGACY_APP_NAME == "HarpGuide"
-    assert __version__.startswith("0.14"), __version__
+    assert __version__.startswith("0.15"), __version__
     assert data_dir().is_dir()                     # 数据目录可创建/可写
     # 旧 %APPDATA%/HarpGuide 的数据应能被搬到新目录，且不覆盖新目录里已有的文件
     _mroot = Path(tempfile.mkdtemp())
@@ -1154,6 +1154,117 @@ def _selftest(controller) -> int:
     if not _was_visible:
         _ov.hide()
     print("[OK] v0.14.3 循环回绕清零 / 顶栏齿轮点击与留位 / 长曲名省略")
+
+    # 17) v0.15.0：粘贴简谱导入 + 曲库刷新 / 打开曲目文件夹
+    #     （这两个缺口是"用户真实需求"：EXE 里没有简谱解析入口，抄来一段数字谱只能
+    #       一个音一个音点；手工放进 scores/ 的曲目必须重启程序才会出现）
+    from harpguide.editor import EXAMPLE_JIANPU, JianpuPasteDialog
+    from harpguide.jianpu import normalize_jianpu, scan_tokens
+
+    # 17a) 预检：认不出来的 token 必须被点名（解析器对不认识的 token 是静默跳过的，
+    #      不点名用户只会看到"少了一个音"，然后一个音一个音去对数）
+    _ok, _bad = scan_tokens("| 1 2 3- 4 | 5 5 6-- 7 |")
+    assert len(_ok) == 8 and not _bad, (_ok, _bad)
+    _ok2, _bad2 = scan_tokens("| 1 2 Q 3 | ５ ６ ｜ 7 |")
+    assert _bad2 == ["Q"], _bad2                 # 全角数字 / 全角竖线不该被算成错误
+    assert len(_ok2) == 6, _ok2                  # 半角全角混写都要认
+    # 落在最前面的延音线要报错（说明抄漏了它前面的音符）
+    _ok3, _bad3 = scan_tokens("- 1 2")
+    assert _bad3 == ["-"] and len(_ok3) == 2, (_ok3, _bad3)
+    # 全角 / 中文标点自动归一
+    assert normalize_jianpu("１、２，３；４").split() == ["1", "2", "3", "4"]
+    assert normalize_jianpu("1－3") == "1-3"     # 全角减号 -> 半角延音线
+    _s_full = parse_jianpu("｜ １ １ ５ ５ ｜ ６ ６ ５－ ｜", name="全角", bpm=100)
+    assert [n.key for n in _s_full.notes] == ["Z", "Z", "B", "B", "N", "N", "B"], \
+        [n.key for n in _s_full.notes]
+    assert _s_full.notes[6].type is NoteType.HOLD     # ５－ 是长按
+    _s_fwfrac = parse_jianpu("０.５:１ ０.５:２", name="全角分数", bpm=100)
+    assert [n.duration for n in _s_fwfrac.notes] == [0.5, 0.5]
+
+    # 17b) 粘贴对话框：实时预检 / 结果 Score（不 exec，避免模态阻塞自检）
+    _dlg = JianpuPasteDialog(ed, default_name="起风了", default_bpm=88,
+                             has_notes=True)
+    assert not _dlg.btn_ok.isEnabled(), "空文本时不该允许载入"
+    assert "还没有" in _dlg.preview.text()
+    _dlg.text_edit.setPlainText(EXAMPLE_JIANPU)
+    assert _dlg.btn_ok.isEnabled() and _dlg.append_mode() is False
+    assert "识别" in _dlg.preview.text()
+    _dlg.append_cb.setChecked(True)
+    assert _dlg.append_mode() is True
+    _dlg.bpm_spin.setValue(120)
+    assert _dlg.preview.text() != "", "改 BPM 后预览必须跟着更新时长"
+    _dlg.text_edit.setPlainText("| 1 2 Q 3 |")
+    assert "认不出来" in _dlg.preview.text() and "Q" in _dlg.preview.text()
+    _dlg.text_edit.setPlainText(EXAMPLE_JIANPU)
+    _sc_j = _dlg.result_score()
+    assert _sc_j.name == "起风了" and _sc_j.bpm == 120 and len(_sc_j.notes) == 28, \
+        (_sc_j.name, _sc_j.bpm, len(_sc_j.notes))
+    _dlg.resize(620, 420)
+    assert not _dlg.grab().isNull()
+    _dlg.deleteLater()
+
+    # 17c) 替换 / 追加：替换可撤销；追加从现有内容末尾对齐整拍接上
+    _ed_n0 = len(ed.grid.notes())
+    ed.grid.set_notes(parse_jianpu("| 1 2 3 4 |", name="短", bpm=100).notes)
+    assert len(ed.grid.notes()) == 4
+    assert ed.grid.undo() and len(ed.grid.notes()) == _ed_n0, "粘贴替换必须是可撤销的"
+    ed.grid.set_notes(parse_jianpu("| 1 2 3 4 |", name="短", bpm=100).notes)
+    ed.grid.set_notes(parse_jianpu("| 5 6 7 8 |", name="尾", bpm=100).notes, append=True)
+    _all = ed.grid.notes()
+    assert len(_all) == 8, len(_all)
+    assert _all[4].beat == 4.0, _all[4].beat      # 前一段占 4 拍 -> 后一段从第 4 拍起
+    assert ed.grid.undo() and len(ed.grid.notes()) == 4
+    # 空输入是空操作（不该平白往撤销栈里塞一份快照）
+    _before_undo = ed.grid.can_undo()
+    assert ed.grid.set_notes([]) == 0
+    assert ed.grid.can_undo() == _before_undo
+
+    # 17d) 刷新曲库：外部新增的曲目刷新后立刻可见；当前曲目被改过时无缝换入，
+    #      位置与播放状态保留（用户改完 JSON 想立刻听效果，不该被打回开头）
+    _reload_root = _Path(tempfile.mkdtemp())
+    (_reload_root / "scores").mkdir(parents=True)
+    _probe_notes = [_Note("Z", NoteType.TAP, 1.0, 0.0),
+                    _Note("X", NoteType.TAP, 1.0, 1.0)]
+    _Sc(id="probe", name="刷新探针", bpm=100, notes=_probe_notes).save(
+        _reload_root / "scores" / "probe.json")
+    _orig_dd = (_appmod.data_dir, _appmod.app_root)
+    _appmod.data_dir = lambda: _reload_root
+    # app_root 也要一起指过去：非打包态的内建目录就是项目目录，
+    # 只改 data_dir 会连带把真实项目里的 26 首曲库一起扫进来。
+    _appmod.app_root = lambda: _reload_root
+    try:
+        # 打包态除了用户目录，还会从 sys._MEIPASS 读到 26 首内建曲目，
+        # 所以这里只断言"探针被当作用户曲目读进来了"，不依赖曲库总数。
+        controller.reload_scores()
+        _by_id = {s.id: s for s in controller.scores}
+        assert "probe" in _by_id, sorted(_by_id)
+        assert _by_id["probe"].builtin is False, "用户目录里的曲目不该被标成内置只读"
+        assert _by_id["probe"].name == "刷新探针"
+        # 刷新后当前曲目必须仍能从列表里解析出来（要么原样保留，要么退回第一首）
+        assert controller._pick_score(controller.engine.score.id) is not None
+        # 把它当成"正在吹的那一首"，验证外部改动后的无缝换入
+        controller._select_score("probe")
+        assert controller._pick_score("probe") is not None
+        _Sc(id="probe", name="刷新探针", bpm=120, notes=_probe_notes).save(
+            _reload_root / "scores" / "probe.json")
+        controller.engine.seek(600.0)
+        _pos_before = controller.engine.position_ms()
+        controller.reload_scores()
+        assert controller.engine.score.bpm == 120, controller.engine.score.bpm
+        assert abs(controller.engine.position_ms() - _pos_before) < 1.0, \
+            "刷新把播放位置打回开头了"
+        # 内容没变时再刷一次：不得重建曲目对象（避免无谓地重置判定状态）
+        _same = controller.engine.score
+        controller.reload_scores()
+        assert controller.engine.score is _same, "内容没变时不该换掉当前曲目"
+    finally:
+        _appmod.data_dir, _appmod.app_root = _orig_dd
+        shutil.rmtree(_reload_root, ignore_errors=True)
+        controller.scores = controller._load_scores() or controller._builtin_scores()
+        controller.overlay.sidebar.set_scores(controller.scores, _orig_score.id)
+        controller.settings.last_score_id = _orig_score.id
+    ed.load_score(_orig_score)          # 编辑区还原成常规底稿
+    print("[OK] 粘贴简谱（预检点名/全角归一/替换可撤销/追加整拍对齐）+ 曲库刷新（外部改动无缝换入）")
 
     # 块尾还原：引擎、设置、判定状态
     controller.settings.hit_feedback = _orig_fb

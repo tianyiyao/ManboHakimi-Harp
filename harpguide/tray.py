@@ -28,6 +28,8 @@ class TrayController(QObject):
     reset_requested = Signal()
     open_calibration_requested = Signal()
     open_editor_requested = Signal()
+    reload_scores_requested = Signal()          # 重新扫描曲目目录
+    open_scores_folder_requested = Signal()     # 在资源管理器里打开曲目目录
     quit_requested = Signal()
 
     def __init__(self, parent: Optional[QObject] = None):
@@ -99,6 +101,18 @@ class TrayController(QObject):
         act_editor = QAction("乐谱编辑器…", m)
         act_editor.triggered.connect(self.open_editor_requested)
         m.addAction(act_editor)
+
+        m.addSeparator()
+
+        # 曲目目录：手工放进 scores/ 的 JSON 原先只能重启程序才会出现，
+        # 这两项把「放进去 -> 刷新」和「不知道放哪」两个问题一起解决。
+        act_reload = QAction("刷新曲库", m)
+        act_reload.triggered.connect(self.reload_scores_requested)
+        m.addAction(act_reload)
+
+        act_scores_dir = QAction("打开曲目文件夹…", m)
+        act_scores_dir.triggered.connect(self.open_scores_folder_requested)
+        m.addAction(act_scores_dir)
 
         m.addSeparator()
 
