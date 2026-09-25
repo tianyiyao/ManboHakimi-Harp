@@ -5,6 +5,8 @@
 """
 from __future__ import annotations
 
+from .console import safe_print
+
 import json
 import math
 import os
@@ -117,7 +119,7 @@ class Settings:
         try:
             write_json_atomic(self._path, d)
         except (OSError, TypeError, ValueError) as e:
-            print(f"[Settings] 保存失败: {e}")
+            safe_print(f"[Settings] 保存失败: {e}")
 
     @classmethod
     def load(cls, path: Optional[Path] = None) -> "Settings":
@@ -165,5 +167,5 @@ class Settings:
                     elif key == "last_score_id" and isinstance(value, str):
                         s.last_score_id = value
             except (json.JSONDecodeError, OSError, ValueError) as e:
-                print(f"[Settings] 读取失败，使用默认配置: {e}")
+                safe_print(f"[Settings] 读取失败，使用默认配置: {e}")
         return s

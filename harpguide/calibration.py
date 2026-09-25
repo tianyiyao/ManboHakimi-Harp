@@ -18,6 +18,8 @@
 """
 from __future__ import annotations
 
+from .console import safe_print
+
 import json
 import math
 from dataclasses import dataclass, field
@@ -132,7 +134,7 @@ class CalibrationData:
         try:
             write_json_atomic(self._path, data)
         except (OSError, TypeError, ValueError) as e:
-            print(f"[Calibration] 保存失败: {e}")
+            safe_print(f"[Calibration] 保存失败: {e}")
 
     @classmethod
     def load(cls, path: Optional[Path] = None) -> "CalibrationData":
@@ -162,5 +164,5 @@ class CalibrationData:
                            and math.isfinite(g.size) and g.size > 0 for g in geoms):
                         cal.profiles[str(res)] = geoms
             except (json.JSONDecodeError, OSError, AttributeError, TypeError, ValueError) as e:
-                print(f"[Calibration] 读取失败，忽略校准文件: {e}")
+                safe_print(f"[Calibration] 读取失败，忽略校准文件: {e}")
         return cal

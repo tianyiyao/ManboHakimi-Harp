@@ -8,6 +8,8 @@
 """
 from __future__ import annotations
 
+from .console import safe_print
+
 import ctypes
 import ctypes.wintypes as wt
 import math
@@ -740,7 +742,7 @@ class OverlayWindow(QWidget):
                 style |= WS_EX_LAYERED | WS_EX_TOOLWINDOW
             user32.SetWindowLongW(hwnd, GWL_EXSTYLE, style)
         except Exception as e:
-            print(f"[Overlay] 点击穿透切换失败: {e}")
+            safe_print(f"[Overlay] 点击穿透切换失败: {e}")
 
     @property
     def click_through(self) -> bool:

@@ -2,6 +2,8 @@
 """数据模型：乐谱 / 音符（tap 短按 / hold 长按 / rest 休止）。"""
 from __future__ import annotations
 
+from .console import safe_print
+
 import json
 import math
 from dataclasses import dataclass, field
@@ -213,7 +215,7 @@ def load_scores(folder: str | Path) -> List[Score]:
         try:
             scores.append(Score.load(p))
         except Exception as e:  # 单个乐谱损坏不影响整体
-            print(f"[ScoreLoader] 跳过损坏的乐谱 {p.name}: {e}")
+            safe_print(f"[ScoreLoader] 跳过损坏的乐谱 {p.name}: {e}")
     return scores
 
 

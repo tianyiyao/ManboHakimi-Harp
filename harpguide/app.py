@@ -6,6 +6,8 @@
 """
 from __future__ import annotations
 
+from .console import safe_print
+
 import math
 import sys
 from dataclasses import replace
@@ -180,7 +182,7 @@ class AppController(QObject):
         icon_root = Path(sys._MEIPASS) if getattr(sys, "frozen", False) else app_root()
         icon = _QI(str(icon_root / "assets" / "icon.ico"))
         if not self.tray.install(icon, tooltip="ManboHakimi-Harp · 口风琴练习"):
-            print("[Tray] 当前环境无可用托盘，回退到仅浮窗模式")
+            safe_print("[Tray] 当前环境无可用托盘，回退到仅浮窗模式")
         self.tray.toggle_visible_requested.connect(self.toggle_visible)
         self.tray.open_settings_requested.connect(self.toggle_settings)
         self.tray.toggle_playback_requested.connect(self._tray_toggle_playback)
@@ -302,7 +304,7 @@ class AppController(QObject):
         """底部热键提示条开关。"""
         self.overlay.set_hotkeys_visible(v)
         self.settings.save()
-        print(f"[HintBar] 底部热键提示 {'开启' if v else '关闭'}")
+        safe_print(f"[HintBar] 底部热键提示 {'开启' if v else '关闭'}")
 
     def _on_overlay_resized(self, w: int, h: int) -> None:
         """用户拖拽调整浮窗大小后：同步设置面板的瀑布流高度滑杆。"""
@@ -367,7 +369,7 @@ class AppController(QObject):
             self._loop_b_ms = None
             self.engine.clear_loop_range()
         self._apply_loop_range()
-        print(f"[Loop] A = {pos:.0f}ms")
+        safe_print(f"[Loop] A = {pos:.0f}ms")
 
     def _mark_loop_b(self) -> None:
         """B 点：首次按下设为 B 点并开启循环，已开启时再按则清除。"""
@@ -384,7 +386,7 @@ class AppController(QObject):
             self._loop_a_ms = 0.0
         self._loop_b_ms = pos
         self._apply_loop_range()
-        print(f"[Loop] B = {pos:.0f}ms")
+        safe_print(f"[Loop] B = {pos:.0f}ms")
 
     def _panel_set_point(self, which: str) -> None:
         if which == "a":
@@ -418,7 +420,7 @@ class AppController(QObject):
         self._refresh_loop_marks()
         self._persist_loop_range()
         self.panel.set_loop_status(None, None)
-        print("[Loop] A-B 区间已清除")
+        safe_print("[Loop] A-B 区间已清除")
 
     def _panel_set_loop_range(self, a_beat: float, b_beat: float) -> None:
         """面板直接输入拍数设置区间。"""
@@ -464,7 +466,7 @@ class AppController(QObject):
         # 旧逻辑仍然往用户目录写一份新文件，于是原曲目还在 -> 列表里出现两条
         # 名字不同的"同一首歌"。这里直接拒绝，由侧边栏把菜单项置灰并说明原因。
         if getattr(score, "builtin", False) or old_path is None or not old_path.exists():
-            print(f"[Score] 内置曲目只读，不能重命名: {score_id}")
+            safe_print(f"[Score] 内置曲目只读，不能重命名: {score_id}")
             return
         base_id = sanitize_id(new_name)
         new_id = base_id
@@ -488,7 +490,7 @@ class AppController(QObject):
                     new_path.unlink(missing_ok=True)
                 except OSError:
                     pass
-            print(f"[Score] 重命名失败: {e}")
+            safe_print(f"[Score] 重命名失败: {e}")
             return
         self.settings.last_score_id = new_id
         if score_id in self.settings.loop_ranges:
@@ -496,19 +498,19 @@ class AppController(QObject):
         self.settings.save()
         self.scores = self._load_scores()
         self._select_score(new_id)
-        print(f"[Score] 已重命名为 {new_name}")
+        safe_print(f"[Score] 已重命名为 {new_name}")
 
     def _delete_score(self, score_id: str) -> None:
         score = self._pick_score(score_id)
         was_current = self.engine.score.id == score_id
         path = _score_file_path(data_dir() / "scores", score_id)
         if (score is not None and getattr(score, "builtin", False)) or path is None or not path.exists():
-            print(f"[Score] 内置曲目不可删除: {score_id}")
+            safe_print(f"[Score] 内置曲目不可删除: {score_id}")
             return
         try:
             path.unlink()
         except OSError as e:
-            print(f"[Score] 删除失败: {e}")
+            safe_print(f"[Score] 删除失败: {e}")
             return
         self.settings.loop_ranges.pop(score_id, None)
         self.scores = self._load_scores()
@@ -523,7 +525,7 @@ class AppController(QObject):
                 self.settings.last_score_id = self.scores[0].id
             self.overlay.sidebar.set_scores(self.scores, self.settings.last_score_id)
             self.settings.save()
-        print(f"[Score] 已删除 {score_id}")
+        safe_print(f"[Score] 已删除 {score_id}")
 
     def reload_scores(self) -> int:
         """重新扫描曲目目录，把磁盘上的改动载进来（托盘「刷新曲库」）。
@@ -554,7 +556,7 @@ class AppController(QObject):
                 self.engine.seek(min(pos, fresh.total_ms()))
             if was_playing:
                 self.engine.play()
-            print(f"[Score] 已重新载入 {fresh.name}")
+            safe_print(f"[Score] 已重新载入 {fresh.name}")
         self.overlay.sidebar.set_scores(self.scores, cur.id)
         return len(self.scores)
 
@@ -571,7 +573,7 @@ class AppController(QObject):
         try:
             folder.mkdir(parents=True, exist_ok=True)
         except OSError as e:
-            print(f"[Score] 曲目目录不可用: {e}")
+            safe_print(f"[Score] 曲目目录不可用: {e}")
             return
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder)))
 
@@ -642,7 +644,7 @@ class AppController(QObject):
             cb.blockSignals(True)
             cb.setChecked(v)
             cb.blockSignals(False)
-        print(f"[Transpose] 自动变调 {'开启' if v else '关闭'}")
+        safe_print(f"[Transpose] 自动变调 {'开启' if v else '关闭'}")
 
     def _current_required_transpose(self, pos: float) -> int:
         """当前播放位置需要的调性档：取活跃音符，否则未来 1 拍内的音符。"""
@@ -670,7 +672,7 @@ class AppController(QObject):
         if not v:
             self.overlay.keys.clear_feedback()
         self._reset_feedback(self.engine.position_ms())
-        print(f"[Feedback] 命中反馈 {'开启' if v else '关闭'}")
+        safe_print(f"[Feedback] 命中反馈 {'开启' if v else '关闭'}")
 
     def _set_judge_offset(self, v: int) -> None:
         """判定偏移（ms）：正值补偿「整体按晚」，负值补偿「整体按早」。
@@ -685,7 +687,7 @@ class AppController(QObject):
         self._off_hist.clear()
         self.overlay.set_judge_offset(None)
         self.panel.sync_offset_slider(v)
-        print(f"[Feedback] 判定偏移 {v:+d}ms")
+        safe_print(f"[Feedback] 判定偏移 {v:+d}ms")
 
     def _nudge_judge_offset(self, delta: int) -> None:
         cur = int(getattr(self.settings, "judge_offset_ms", 0) or 0)
@@ -911,7 +913,7 @@ class AppController(QObject):
         self.calibration.screen_key = key
         self.cal_panel.set_profile_key(key)
         self.overlay.apply_calibration(self.calibration.profile())
-        print(f"[Calibration] 切换档案: {key}")
+        safe_print(f"[Calibration] 切换档案: {key}")
 
     def toggle_calibration(self) -> None:
         """Ctrl+Shift+C：进入校准 / 已在校准时保存并退出。"""
@@ -940,7 +942,7 @@ class AppController(QObject):
         self.overlay.set_sidebar_enabled(False)
         self.cal_panel.move_beside(self.overlay.pos())
         self.cal_panel.show()
-        print("[Calibration] 进入校准模式")
+        safe_print("[Calibration] 进入校准模式")
 
     def _exit_calibration(self) -> None:
         self._calibrating = False
@@ -952,7 +954,7 @@ class AppController(QObject):
         if self._cal_was_clickthrough:
             self.overlay.set_click_through(True)
             self.panel.click_cb.setChecked(True)
-        print("[Calibration] 退出校准模式")
+        safe_print("[Calibration] 退出校准模式")
 
     def _save_calibration(self) -> None:
         geoms = self.overlay.keys.geometries()
@@ -1012,7 +1014,7 @@ class AppController(QObject):
             return
         score = self.editor.build_score("__preview__", preview=True)
         if not score.notes:
-            print("[Editor] 试听忽略：编辑区没有音符")
+            safe_print("[Editor] 试听忽略：编辑区没有音符")
             return
         self.engine.set_score(score)
         self.overlay.set_score(score)

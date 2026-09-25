@@ -21,6 +21,8 @@
 """
 from __future__ import annotations
 
+from .console import safe_print
+
 import ctypes
 import ctypes.wintypes as wt
 import sys
@@ -123,7 +125,7 @@ class HotkeyFilter(QAbstractNativeEventFilter):
                 self._id_to_name[hid] = name
             else:
                 self.failed.append(name)
-                print(f"[Hotkey] 注册失败（可能被其他程序占用）: {name}")
+                safe_print(f"[Hotkey] 注册失败（可能被其他程序占用）: {name}")
 
     def failed_labels(self) -> List[str]:
         """返回人类可读的冲突热键列表。"""

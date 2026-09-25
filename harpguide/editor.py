@@ -15,6 +15,8 @@
 """
 from __future__ import annotations
 
+from .console import safe_print
+
 import hashlib
 import math
 import re
@@ -966,7 +968,7 @@ class EditorWindow(QWidget):
                             QMessageBox.StandardButton.Ok,
                             QMessageBox.Icon.Warning)
             return None
-        print(f"[Editor] 已导出 {path}")
+        safe_print(f"[Editor] 已导出 {path}")
         return path
 
     # ---- 粘贴简谱 ----
@@ -998,7 +1000,7 @@ class EditorWindow(QWidget):
             self._source_score = score
         self.grid.set_notes(score.notes, append=append)
         self._sync_buttons()
-        print(f"[Editor] 粘贴简谱：{len(score.notes)} 个音符"
+        safe_print(f"[Editor] 粘贴简谱：{len(score.notes)} 个音符"
               f"{'（追加）' if append else ''}")
         return score
 
@@ -1041,6 +1043,6 @@ class EditorWindow(QWidget):
         score.save(path)
         self._source_id = score_id
         self._source_score = score
-        print(f"[Editor] 已保存 {path}")
+        safe_print(f"[Editor] 已保存 {path}")
         self.saved.emit(score_id)
         return score_id
