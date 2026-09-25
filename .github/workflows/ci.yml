@@ -1,0 +1,45 @@
+name: Windows tests and package
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements-build.txt
+      - name: Undefined-name check
+        run: python -m ruff check --select F821,F822,F823 .
+      - name: Regression tests
+        shell: pwsh
+        run: |
+          $env:QT_QPA_PLATFORM = 'offscreen'
+          python -m unittest discover -s tests -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Source self-test
+        shell: pwsh
+        run: |
+          $env:QT_QPA_PLATFORM = 'offscreen'
+          python main.py --selftest
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Package EXE
+        run: python -m PyInstaller --noconfirm ManboHakimi-Harp.spec
+      - name: Packaged self-test
+        shell: pwsh
+        run: |
+          $env:QT_QPA_PLATFORM = 'offscreen'
+          $program = (Resolve-Path 'dist/ManboHakimi-Harp.exe').Path
+          $process = Start-Process -FilePath $program -ArgumentList '--selftest' -Wait -PassThru -WindowStyle Hidden
+          if ($process.ExitCode -ne 0) { exit $process.ExitCode }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ManboHakimi-Harp-windows
+          path: dist/ManboHakimi-Harp.exe
