@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 
+import math
 from typing import Optional, Tuple
 
 from PySide6.QtCore import QObject, QElapsedTimer, Signal
@@ -95,10 +96,13 @@ class PlaybackEngine(QObject):
 
     def set_loop_range(self, a_ms: float, b_ms: float) -> bool:
         """设置 A-B 循环区间。自动交换顺序；区间过短则拒绝。"""
+        if not (math.isfinite(a_ms) and math.isfinite(b_ms)):
+            return False
         a, b = (a_ms, b_ms) if a_ms <= b_ms else (b_ms, a_ms)
+        a, b = max(0.0, a), min(self.total_ms(), b)
         if b - a < 50.0:          # 至少 50ms，避免误点造成死循环
             return False
-        self._loop_range = (max(a, self.start_ms()), min(b, self.total_ms()))
+        self._loop_range = (a, b)
         self._finished = False
         # 当前播放位置若在区间外，立即拉回 A 点
         if not (self._loop_range[0] <= self.position_ms() <= self._loop_range[1]):

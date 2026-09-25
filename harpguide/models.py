@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional
+
+from .storage import write_json_atomic
 
 # 游戏内口风琴实际键位（截图确认）：Z X C V B N M ,  共 8 键
 DEFAULT_KEYMAP = ["Z", "X", "C", "V", "B", "N", "M", ","]
@@ -153,6 +156,9 @@ class Score:
 
     @classmethod
     def from_dict(cls, data: dict) -> "Score":
+        bpm = float(data.get("bpm", 80.0))
+        if not math.isfinite(bpm) or bpm <= 0:
+            raise ValueError("BPM 必须是大于 0 的有限数")
         notes = []
         for raw in data.get("notes", []):
             key = str(raw.get("key", "rest"))
@@ -160,17 +166,22 @@ class Score:
             # 兼容 v1.0 旧格式（无 type 字段）：duration>1 视为长按
             if "type" not in raw and ntype is NoteType.TAP and float(raw.get("duration", 1)) > 1.0:
                 ntype = NoteType.HOLD
+            duration = float(raw.get("duration", 1.0))
+            beat = float(raw.get("beat", 0.0))
+            if not (math.isfinite(duration) and duration > 0
+                    and math.isfinite(beat) and beat >= 0):
+                raise ValueError("音符时值必须大于 0，起始拍不能为负数")
             notes.append(Note(
                 key=key,
                 type=ntype,
-                duration=float(raw.get("duration", 1.0)),
-                beat=float(raw.get("beat", 0.0)),
+                duration=duration,
+                beat=beat,
                 accidental=int(raw.get("accidental", 0)),
             ))
         return cls(
             id=str(data.get("id", "")),
             name=str(data.get("name", "未命名")),
-            bpm=float(data.get("bpm", 80.0)),
+            bpm=bpm,
             time_signature=str(data.get("timeSignature", "4/4")),
             keymap=list(data.get("keyMap", DEFAULT_KEYMAP)),
             notes=notes,
@@ -183,14 +194,13 @@ class Score:
         with open(p, "r", encoding="utf-8") as f:
             data = json.load(f)
         score = cls.from_dict(data)
-        if not score.id:
-            score.id = p.stem
+        # 文件名才是曲库里的实际身份。外部导入的 JSON 可以包含任意 id；
+        # 若沿用其中的路径或另一首曲目的 id，删除/重命名可能操作错文件。
+        score.id = p.stem
         return score
 
     def save(self, path: str | Path) -> None:
-        Path(path).write_text(
-            json.dumps(self.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+        write_json_atomic(path, self.to_dict())
 
 
 def load_scores(folder: str | Path) -> List[Score]:

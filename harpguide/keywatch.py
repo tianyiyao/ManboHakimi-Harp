@@ -128,6 +128,13 @@ class KeyWatcher:
         return pressed, held
 
     def reset(self) -> None:
-        """清空边沿状态（切曲 / 重置时调用，避免把"一直按住"误判为新按下）。"""
-        for k in self._down:
-            self._down[k] = False
+        """以当前物理按键状态重新建立基线，避免把已按住的键当作新按下。"""
+        for key, vk in self._map.items():
+            if self._user32 is None:
+                self._down[key] = False
+                continue
+            try:
+                # 同时读掉 0x0001 历史位；下一帧只报告重置之后的新按下。
+                self._down[key] = bool(self._user32.GetAsyncKeyState(vk) & 0x8000)
+            except Exception:
+                self._down[key] = False

@@ -231,7 +231,7 @@ class SettingsPanel(QWidget):
         lay.addLayout(row_clear)
 
         hint_loop = QLabel("Ctrl+Shift+A 标记 A 点 · Ctrl+Shift+B 标记 B 点（再按清除）\n"
-                           "F2 重置会回到 A 点；进度条可点击/拖动跳转",
+                           "小键盘8 重置会回到 A 点；进度条可点击/拖动跳转",
                            objectName="hint")
         hint_loop.setWordWrap(True)
         lay.addWidget(hint_loop)
@@ -388,8 +388,8 @@ class SettingsPanel(QWidget):
         # ---------- 热键说明 ----------
         lay.addWidget(QLabel("热键", objectName="sec"))
         hotkeys = QLabel(
-            "F1 开始/暂停    F2 重置(回 A 点)    F3 显示/隐藏\n"
-            "F4 悬浮球    Ctrl+Shift+A 标记 A 点\n"
+            "小键盘7 开始/暂停    小键盘8 重置(回 A 点)    小键盘9 显示/隐藏\n"
+            "小键盘+ 悬浮球    Ctrl+Shift+A 标记 A 点\n"
             "Ctrl+Shift+B 标记 B 点/清除    Ctrl+Shift+T 穿透\n"
             "Ctrl+Shift+C 琴键校准    Ctrl+Shift+E 编辑器\n"
             "Ctrl+Shift+Q 退出\n"

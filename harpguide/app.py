@@ -6,7 +6,9 @@
 """
 from __future__ import annotations
 
+import math
 import sys
+from dataclasses import replace
 from pathlib import Path
 from typing import List, Optional
 
@@ -40,6 +42,14 @@ JUDGE_COLORS = {
 }
 
 
+def _score_file_path(scores_dir: Path, score_id: str) -> Optional[Path]:
+    """只允许曲库目录内的简单文件名，避免导入的 JSON id 指向其他文件。"""
+    if (not score_id or score_id in {".", ".."}
+            or any(char in score_id for char in "/\\:\0")):
+        return None
+    return scores_dir / f"{score_id}.json"
+
+
 class AppController(QObject):
     def __init__(self, app: QApplication):
         super().__init__(app)
@@ -65,6 +75,11 @@ class AppController(QObject):
         self.overlay.move(self.settings.window_x, self.settings.window_y)
         self.overlay._ensure_on_screen()
         self.overlay.topbar.settings_clicked.connect(self.toggle_settings)
+        self.overlay.actions.play_requested.connect(self.engine.toggle)
+        self.overlay.actions.reset_requested.connect(self._reset_all)
+        self.overlay.actions.ball_requested.connect(self.toggle_ball)
+        self.overlay.actions.hide_requested.connect(self.toggle_visible)
+        self.engine.state_changed.connect(self.overlay.actions.set_playing)
         # 一整遍播完回绕到起点（整曲循环 / A-B 循环）＝新一遍开始，判定与得分清零
         self.engine.pass_finished.connect(self._on_pass_finished)
         self.overlay.set_click_through(self.settings.click_through)
@@ -162,8 +177,8 @@ class AppController(QObject):
         # 系统托盘（Windows 任务栏右下角）：右键菜单退出/设置等
         self.tray = TrayController(self)
         from PySide6.QtGui import QIcon as _QI
-        from .config import app_root as _app_root
-        icon = _QI(str(_app_root() / "assets" / "icon.ico"))
+        icon_root = Path(sys._MEIPASS) if getattr(sys, "frozen", False) else app_root()
+        icon = _QI(str(icon_root / "assets" / "icon.ico"))
         if not self.tray.install(icon, tooltip="ManboHakimi-Harp · 口风琴练习"):
             print("[Tray] 当前环境无可用托盘，回退到仅浮窗模式")
         self.tray.toggle_visible_requested.connect(self.toggle_visible)
@@ -387,6 +402,7 @@ class AppController(QObject):
             self._loop_b_ms = None
             self.engine.clear_loop_range()
         else:
+            self._loop_a_ms, self._loop_b_ms = self.engine.loop_range
             # 区间定好后判定线可能已经被拉回 A 点（引擎内部 seek）：把 A 点之前的
             # 音符标记为已判定。这里只"补标记"，绝不清 `_judged`——
             # 玩家刚按中的音符也在里面，清掉会让它变成漏音。
@@ -423,41 +439,55 @@ class AppController(QObject):
 
     def _restore_loop_range(self, score: Score) -> None:
         raw = self.settings.loop_ranges.get(score.id)
-        if not raw or len(raw) != 2:
+        if not isinstance(raw, (list, tuple)) or len(raw) != 2:
             return
-        a_ms = float(raw[0]) * 60000.0 / score.bpm
-        b_ms = float(raw[1]) * 60000.0 / score.bpm
+        try:
+            a_ms = float(raw[0]) * 60000.0 / score.bpm
+            b_ms = float(raw[1]) * 60000.0 / score.bpm
+        except (TypeError, ValueError, OverflowError, ZeroDivisionError):
+            return
+        if not (math.isfinite(a_ms) and math.isfinite(b_ms)):
+            return
         self._loop_a_ms, self._loop_b_ms = a_ms, b_ms
         self._apply_loop_range()
 
     # ---- 曲目管理 ----
     def _rename_score(self, score_id: str, new_name: str) -> None:
-        from .editor import sanitize_id, unique_score_id
+        from .editor import sanitize_id
         score = self._pick_score(score_id)
         if not score or not new_name.strip():
             return
         new_name = new_name.strip()
         scores_dir = data_dir() / "scores"
-        old_path = scores_dir / f"{score_id}.json"
+        old_path = _score_file_path(scores_dir, score_id)
         # 内置曲目只读：文件在 EXE 内部（_MEIPASS）或安装目录，删不掉也改不了。
         # 旧逻辑仍然往用户目录写一份新文件，于是原曲目还在 -> 列表里出现两条
         # 名字不同的"同一首歌"。这里直接拒绝，由侧边栏把菜单项置灰并说明原因。
-        if getattr(score, "builtin", False) or not old_path.exists():
+        if getattr(score, "builtin", False) or old_path is None or not old_path.exists():
             print(f"[Score] 内置曲目只读，不能重命名: {score_id}")
             return
-        new_id = sanitize_id(new_name)
+        base_id = sanitize_id(new_name)
+        new_id = base_id
         new_path = scores_dir / f"{new_id}.json"
-        if new_id != score_id and new_path.exists():
-            # 撞上别人的曲目文件：另挑一个 id，绝不覆盖
-            new_id = unique_score_id(new_name, scores_dir)
+        suffix = 2
+        while new_id != score_id and new_path.exists():
+            # 重命名不能覆盖另一首曲目，即使对方恰好也叫这个名字。
+            new_id = f"{base_id}_{suffix}"
             new_path = scores_dir / f"{new_id}.json"
-        score.name = new_name
-        score.id = new_id
+            suffix += 1
+        renamed = replace(score, id=new_id, name=new_name)
+        wrote_new = False
         try:
+            renamed.save(new_path)
+            wrote_new = old_path != new_path
             if old_path != new_path:
                 old_path.unlink()
-            score.save(new_path)
         except OSError as e:
+            if wrote_new and old_path.exists():
+                try:
+                    new_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
             print(f"[Score] 重命名失败: {e}")
             return
         self.settings.last_score_id = new_id
@@ -470,8 +500,9 @@ class AppController(QObject):
 
     def _delete_score(self, score_id: str) -> None:
         score = self._pick_score(score_id)
-        path = data_dir() / "scores" / f"{score_id}.json"
-        if (score is not None and getattr(score, "builtin", False)) or not path.exists():
+        was_current = self.engine.score.id == score_id
+        path = _score_file_path(data_dir() / "scores", score_id)
+        if (score is not None and getattr(score, "builtin", False)) or path is None or not path.exists():
             print(f"[Score] 内置曲目不可删除: {score_id}")
             return
         try:
@@ -481,14 +512,17 @@ class AppController(QObject):
             return
         self.settings.loop_ranges.pop(score_id, None)
         self.scores = self._load_scores()
-        self._clear_loop_range()
-        if self.scores:
-            self._select_score(self.scores[0].id)
-        else:
+        if not self.scores:
             # 用户删空了所有可删曲目（内置不可删，所以理论上不会到这）：
             # 兜底注入一首内置演示曲，避免后面 self.scores[0] 崩。
             self.scores = self._builtin_scores()
+        if was_current:
             self._select_score(self.scores[0].id)
+        else:
+            if self.settings.last_score_id == score_id:
+                self.settings.last_score_id = self.scores[0].id
+            self.overlay.sidebar.set_scores(self.scores, self.settings.last_score_id)
+            self.settings.save()
         print(f"[Score] 已删除 {score_id}")
 
     def reload_scores(self) -> int:
@@ -509,7 +543,7 @@ class AppController(QObject):
             # 当前曲目在磁盘上被删了 / 改了 id：退回第一首，从头开始
             self._select_score(self.scores[0].id)
             return len(self.scores)
-        if fresh.notes != cur.notes or fresh.bpm != cur.bpm or fresh.name != cur.name:
+        if fresh != cur:
             pos = self.engine.position_ms()
             was_playing = self.engine.playing
             self.engine.set_score(fresh)
@@ -517,7 +551,7 @@ class AppController(QObject):
             self._reset_feedback(pos)      # 换了音符集合，判定基准必须重来
             self._restore_loop_range(fresh)
             if pos > 0:
-                self.engine.seek(pos)
+                self.engine.seek(min(pos, fresh.total_ms()))
             if was_playing:
                 self.engine.play()
             print(f"[Score] 已重新载入 {fresh.name}")
@@ -831,7 +865,7 @@ class AppController(QObject):
             self.panel.show()
 
     def toggle_visible(self) -> None:
-        """切换浮窗显隐（F2 热键 / 托盘菜单）。
+        """切换浮窗显隐（小键盘9 热键 / 托盘菜单）。
 
         隐藏前记下"当时谁在显示"，恢复时按记录精确还原。旧实现固定 show
         三件套，于是悬浮球模式下「隐藏 -> 再显示」会把完整浮窗一起弹出来
@@ -932,7 +966,7 @@ class AppController(QObject):
 
     def _cancel_calibration(self) -> None:
         # 放弃修改：恢复磁盘上的方案（或默认网格）
-        saved = CalibrationData.load().profile()
+        saved = CalibrationData.load().profile(self.calibration.screen_key)
         self.overlay.apply_calibration(saved)
         self._exit_calibration()
 
@@ -1060,7 +1094,7 @@ class AppController(QObject):
     def _tray_toggle_playback(self) -> None:
         """从托盘点"开始/暂停"：先恢复完整可见模式，再切引擎状态。
 
-        避免点托盘后用户看不到进度（hidden / 悬浮球 模式下按 F1 已修过）。
+        避免点托盘后用户看不到进度（hidden / 悬浮球 模式下按 小键盘7 已修过）。
         """
         if self._hidden:
             self.toggle_visible()

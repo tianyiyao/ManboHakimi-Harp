@@ -6,15 +6,19 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Optional
 
+from .storage import write_json_atomic
+
 
 APP_NAME = "ManboHakimi-Harp"
 _LEGACY_APP_NAME = "HarpGuide"      # 旧项目名（v0.12 及以前），用于数据目录迁移
+_DATA_DIR_OVERRIDE: Optional[Path] = None  # 离屏自检专用，启动控制器前设置
 
 
 def app_root() -> Path:
@@ -52,6 +56,10 @@ def _migrate_legacy_dir(base: Path) -> None:
 
 
 def data_dir() -> Path:
+    if _DATA_DIR_OVERRIDE is not None:
+        (_DATA_DIR_OVERRIDE / "config").mkdir(parents=True, exist_ok=True)
+        (_DATA_DIR_OVERRIDE / "scores").mkdir(parents=True, exist_ok=True)
+        return _DATA_DIR_OVERRIDE
     root = app_root()
     try:
         (root / "config").mkdir(parents=True, exist_ok=True)
@@ -107,26 +115,55 @@ class Settings:
     def save(self) -> None:
         d = {k: v for k, v in asdict(self).items() if not k.startswith("_")}
         try:
-            self._path.parent.mkdir(parents=True, exist_ok=True)
-            self._path.write_text(
-                json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
-        except OSError as e:
+            write_json_atomic(self._path, d)
+        except (OSError, TypeError, ValueError) as e:
             print(f"[Settings] 保存失败: {e}")
 
     @classmethod
     def load(cls, path: Optional[Path] = None) -> "Settings":
-        s = cls()
-        if path is not None:
-            s._path = Path(path)
+        s = cls(_path=Path(path)) if path is not None else cls()
         if s._path.exists():
             try:
                 data = json.loads(s._path.read_text(encoding="utf-8"))
-                for k, v in data.items():
-                    if hasattr(s, k):
-                        setattr(s, k, v)
-            except (json.JSONDecodeError, OSError) as e:
+                if not isinstance(data, dict):
+                    raise ValueError("设置文件根节点必须是对象")
+                float_ranges = {
+                    "speed_multiplier": (0.25, 2.0),
+                    "opacity": (0.3, 1.0),
+                    "preparation_lead_beats": (0.5, 4.0),
+                }
+                int_ranges = {
+                    "count_in_beats": (0, 8),
+                    "waterfall_height": (100, 600),
+                    "pixels_per_beat": (1, 1000),
+                    "lookahead_ms": (600, 6000),
+                    "judge_offset_ms": (-600, 600),
+                    "window_x": (-100000, 100000),
+                    "window_y": (-100000, 100000),
+                    "window_w": (360, 10000),
+                    "window_h": (100, 10000),
+                }
+                for key, value in data.items():
+                    if key == "_path" or key not in vars(s):
+                        continue
+                    if key in float_ranges or key in int_ranges:
+                        try:
+                            number = float(value)
+                        except (TypeError, ValueError, OverflowError):
+                            continue
+                        if not math.isfinite(number):
+                            continue
+                        low, high = (float_ranges.get(key) or int_ranges[key])
+                        number = max(low, min(high, number))
+                        setattr(s, key, number if key in float_ranges else int(number))
+                    elif key == "loop_ranges":
+                        if isinstance(value, dict):
+                            s.loop_ranges = value
+                    elif isinstance(getattr(s, key), bool):
+                        if isinstance(value, bool):
+                            setattr(s, key, value)
+                    elif key == "last_score_id" and isinstance(value, str):
+                        s.last_score_id = value
+            except (json.JSONDecodeError, OSError, ValueError) as e:
                 print(f"[Settings] 读取失败，使用默认配置: {e}")
-        # loop_ranges 可能被写坏成非 dict，兜一下
-        if not isinstance(s.loop_ranges, dict):
-            s.loop_ranges = {}
         return s

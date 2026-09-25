@@ -19,11 +19,13 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from .config import data_dir
+from .storage import write_json_atomic
 
 KEY_COUNT = 8
 DEFAULT_KEY_SIZE = 64.0
@@ -128,10 +130,8 @@ class CalibrationData:
             },
         }
         try:
-            self._path.parent.mkdir(parents=True, exist_ok=True)
-            self._path.write_text(
-                json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-        except OSError as e:
+            write_json_atomic(self._path, data)
+        except (OSError, TypeError, ValueError) as e:
             print(f"[Calibration] 保存失败: {e}")
 
     @classmethod
@@ -142,13 +142,25 @@ class CalibrationData:
         if cal._path.exists():
             try:
                 raw = json.loads(cal._path.read_text(encoding="utf-8"))
-                for res, prof in raw.get("profiles", {}).items():
+                profiles = raw.get("profiles", {})
+                if not isinstance(profiles, dict):
+                    raise ValueError("profiles 必须是对象")
+                for res, prof in profiles.items():
+                    if not isinstance(prof, dict):
+                        continue
                     keys = prof.get("keys", [])
-                    if len(keys) == KEY_COUNT:
-                        cal.profiles[res] = [
+                    if not isinstance(keys, list) or len(keys) != KEY_COUNT:
+                        continue
+                    try:
+                        geoms = [
                             KeyGeom(float(k["x"]), float(k["y"]), float(k["size"]))
                             for k in keys
                         ]
-            except (json.JSONDecodeError, OSError, KeyError, TypeError, ValueError) as e:
+                    except (KeyError, TypeError, ValueError, OverflowError):
+                        continue
+                    if all(math.isfinite(g.x) and math.isfinite(g.y)
+                           and math.isfinite(g.size) and g.size > 0 for g in geoms):
+                        cal.profiles[str(res)] = geoms
+            except (json.JSONDecodeError, OSError, AttributeError, TypeError, ValueError) as e:
                 print(f"[Calibration] 读取失败，忽略校准文件: {e}")
         return cal

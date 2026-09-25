@@ -2,10 +2,10 @@
 """全局热键：RegisterHotKey + Windows 原生消息过滤。
 
 热键表：
-    F1              开始 / 暂停提示
-    F2              重置到 A 点（无 A-B 时回曲首）
-    F3              显示 / 隐藏浮窗
-    F4              切换悬浮球 / 完整模式
+    小键盘7         开始 / 暂停提示
+    小键盘8         重置到 A 点（无 A-B 时回曲首）
+    小键盘9         显示 / 隐藏浮窗
+    小键盘+         切换悬浮球 / 完整模式
     Ctrl+Shift+A    设置 A-B 循环的 A 点（当前位置）
     Ctrl+Shift+B    设置 B 点并开启循环；已开启时再按 = 清除并回到整曲
     Ctrl+Shift+T    切换鼠标穿透
@@ -32,18 +32,18 @@ WM_HOTKEY = 0x0312
 MOD_ALT, MOD_CONTROL, MOD_SHIFT = 0x0001, 0x0002, 0x0004
 MOD_NOREPEAT = 0x4000
 
-VK_F1, VK_F2, VK_F3, VK_F4 = 0x70, 0x71, 0x72, 0x73
 VK_T, VK_Q, VK_C, VK_E = 0x54, 0x51, 0x43, 0x45
 VK_A, VK_B = 0x41, 0x42
 VK_NUMPAD0, VK_NUMPAD1, VK_NUMPAD2, VK_NUMPAD3 = 0x60, 0x61, 0x62, 0x63
 VK_NUMPAD4, VK_NUMPAD5, VK_NUMPAD6 = 0x64, 0x65, 0x66
+VK_NUMPAD7, VK_NUMPAD8, VK_NUMPAD9, VK_ADD = 0x67, 0x68, 0x69, 0x6B
 
 # 热键名 -> (modifiers, vk)
 HOTKEY_DEFS = {
-    "toggle_playback": (0, VK_F1),
-    "reset":           (0, VK_F2),
-    "toggle_visible":  (0, VK_F3),
-    "toggle_ball":     (0, VK_F4),
+    "toggle_playback": (0, VK_NUMPAD7),
+    "reset":           (0, VK_NUMPAD8),
+    "toggle_visible":  (0, VK_NUMPAD9),
+    "toggle_ball":     (0, VK_ADD),
     "mark_loop_a":     (MOD_CONTROL | MOD_SHIFT, VK_A),
     "mark_loop_b":     (MOD_CONTROL | MOD_SHIFT, VK_B),
     "toggle_clickthrough": (MOD_CONTROL | MOD_SHIFT, VK_T),
@@ -61,10 +61,10 @@ HOTKEY_DEFS = {
 
 # 人类可读的热键名（用于冲突提示）
 HOTKEY_LABELS = {
-    "toggle_playback": "F1 开始/暂停",
-    "reset":           "F2 重置",
-    "toggle_visible":  "F3 显示/隐藏",
-    "toggle_ball":     "F4 悬浮球",
+    "toggle_playback": "小键盘7 开始/暂停",
+    "reset":           "小键盘8 重置",
+    "toggle_visible":  "小键盘9 显示/隐藏",
+    "toggle_ball":     "小键盘+ 悬浮球",
     "mark_loop_a":     "Ctrl+Shift+A 标记 A 点",
     "mark_loop_b":     "Ctrl+Shift+B 标记 B 点",
     "toggle_clickthrough": "Ctrl+Shift+T 鼠标穿透",

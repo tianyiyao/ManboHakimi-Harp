@@ -2,6 +2,7 @@
 """主浮窗：无边框透明置顶窗口。
 
 - 顶部信息条：♪ 曲名 | BPM | 倍率 | 进度时间 | 齿轮（设置）
+- 常用操作按钮：开始/暂停、重置、悬浮球、隐藏
 - 拖动信息条移动窗口；齿轮打开设置面板
 - 鼠标穿透可切换（Ctrl+Shift+T）
 """
@@ -16,7 +17,7 @@ from typing import Callable, Optional
 from PySide6.QtCore import QPoint, QPointF, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import (QBrush, QColor, QFont, QFontMetrics, QGuiApplication,
                            QLinearGradient, QPainter, QPen)
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from .config import Settings
 from .hintbar import HotkeyBar
@@ -216,6 +217,51 @@ class TopBar(QWidget):
         pass
 
 
+class ActionBar(QWidget):
+    """浮窗内的基础操作入口；快捷键仍可照常使用。"""
+
+    play_requested = Signal()
+    reset_requested = Signal()
+    ball_requested = Signal()
+    hide_requested = Signal()
+
+    def __init__(self, parent: Optional[QWidget] = None):
+        super().__init__(parent)
+        self.setFixedHeight(34)
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(6)
+        self.play_button = self._button("开始", "开始或暂停提示（小键盘 7）")
+        self.reset_button = self._button("重置", "回到 A 点；没有 A-B 区间时回曲首（小键盘 8）")
+        self.ball_button = self._button("悬浮球", "收起浮窗，显示悬浮球（小键盘 +）")
+        self.hide_button = self._button("隐藏", "隐藏浮窗；可用托盘或小键盘 9 恢复")
+        for button in (self.play_button, self.reset_button,
+                       self.ball_button, self.hide_button):
+            lay.addWidget(button, 1)
+        self.play_button.clicked.connect(self.play_requested)
+        self.reset_button.clicked.connect(self.reset_requested)
+        self.ball_button.clicked.connect(self.ball_requested)
+        self.hide_button.clicked.connect(self.hide_requested)
+
+    @staticmethod
+    def _button(label: str, tooltip: str) -> QPushButton:
+        button = QPushButton(label)
+        button.setToolTip(tooltip)
+        button.setCursor(Qt.CursorShape.PointingHandCursor)
+        button.setMinimumHeight(30)
+        button.setStyleSheet(
+            f"QPushButton {{ color: {THEME.text_primary}; background: #182A3B; "
+            f"border: 1px solid {THEME.primary}; border-radius: 6px; "
+            "font-size: 12px; font-weight: bold; padding: 2px 4px; }"
+            "QPushButton:hover { background: #24435B; }"
+            "QPushButton:pressed { background: #315A73; }"
+        )
+        return button
+
+    def set_playing(self, playing: bool) -> None:
+        self.play_button.setText("暂停" if playing else "开始")
+
+
 class ProgressBar(QWidget):
     """可交互进度条：点击 / 拖动跳转，并显示 A-B 循环区间。
 
@@ -339,6 +385,7 @@ class OverlayWindow(QWidget):
 
     # 布局常量（除瀑布流外所有固定部分）
     TOPBAR_H = 44
+    ACTIONBAR_H = 34
     KEYS_H = 120
     PROGRESS_H = 30
     LYRICS_H = 56
@@ -367,6 +414,7 @@ class OverlayWindow(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
 
         self.topbar = TopBar()
+        self.actions = ActionBar()
         self.waterfall = WaterfallWidget(settings)
         self.keys = KeyHintWidget(settings)
         self.lyrics = LyricWidget()
@@ -381,6 +429,7 @@ class OverlayWindow(QWidget):
         lay.setContentsMargins(10, self.MARGIN_TOP, 10, self.MARGIN_BOTTOM)
         lay.setSpacing(self.SPACING)
         lay.addWidget(self.topbar)
+        lay.addWidget(self.actions)
         lay.addWidget(self.waterfall)
         lay.addWidget(self.keys)
         lay.addWidget(self.lyrics)
@@ -498,9 +547,9 @@ class OverlayWindow(QWidget):
 
     def _fixed_height(self) -> int:
         """除瀑布流外所有固定部分的总高度。"""
-        fixed = self.TOPBAR_H + self.KEYS_H + self.PROGRESS_H
+        fixed = self.TOPBAR_H + self.ACTIONBAR_H + self.KEYS_H + self.PROGRESS_H
         fixed += self.MARGIN_TOP + self.MARGIN_BOTTOM
-        n_widgets = 3                      # 顶栏 / 琴键 / 进度条
+        n_widgets = 4                      # 顶栏 / 操作按钮 / 琴键 / 进度条
         if self._lyrics_visible():
             fixed += self.LYRICS_H         # 歌词区：与真实可见性保持一致，无歌词不占位
             n_widgets += 1
@@ -555,7 +604,7 @@ class OverlayWindow(QWidget):
         """
         if not hasattr(self, "sidebar"):
             return
-        top = self.MARGIN_TOP + self.TOPBAR_H + self.SPACING
+        top = self.MARGIN_TOP + self.TOPBAR_H + self.ACTIONBAR_H + 2 * self.SPACING
         bottom = self.height() - self.MARGIN_BOTTOM
         bar_h = self._hotkey_bar_height()
         if bar_h > 0:

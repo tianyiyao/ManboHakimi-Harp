@@ -31,7 +31,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFileDialog,
 
 from .config import data_dir
 from .jianpu import parse_jianpu, scan_tokens
-from .models import DEFAULT_KEYMAP, KEY_LABELS, Note, NoteType, Score
+from .models import DEFAULT_KEYMAP, KEY_LABELS, LyricLine, Note, NoteType, Score
 from .theme import THEME
 
 STEP = 0.5            # 默认编辑精度（拍）
@@ -729,6 +729,7 @@ class EditorWindow(QWidget):
         self.setWindowTitle("ManboHakimi-Harp 乐谱编辑器")
         self.resize(1040, 460)
         self._source_id = ""
+        self._source_score: Optional[Score] = None
 
         self.setStyleSheet(f"""
             QWidget {{ background: {THEME.surface}; color: {THEME.text_primary};
@@ -993,6 +994,8 @@ class EditorWindow(QWidget):
         self.bpm_spin.setValue(int(round(score.bpm)))
         if not append and score.name != cur_name:
             self._source_id = ""          # 曲名变了 -> 当新曲目，不覆盖原文件
+        if not append:
+            self._source_score = score
         self.grid.set_notes(score.notes, append=append)
         self._sync_buttons()
         print(f"[Editor] 粘贴简谱：{len(score.notes)} 个音符"
@@ -1002,6 +1005,7 @@ class EditorWindow(QWidget):
     # ---- 载入 / 保存 ----
     def load_score(self, score: Score) -> None:
         self._source_id = score.id
+        self._source_score = score
         self.name_edit.setText(score.name)
         self.bpm_spin.setValue(int(round(score.bpm)))
         self.grid.load_score(score)
@@ -1009,11 +1013,20 @@ class EditorWindow(QWidget):
     def build_score(self, score_id: str, preview: bool = False) -> Score:
         """由当前编辑内容构造 Score（不写盘），供试听 / 保存复用。"""
         name = self.name_edit.text().strip() or "未命名"
+        source = self._source_score
+        bpm = float(self.bpm_spin.value())
+        lyric_scale = source.bpm / bpm if source and source.bpm > 0 else 1.0
         return Score(
             id=score_id,
             name=f"试听：{name}" if preview else name,
-            bpm=float(self.bpm_spin.value()),
-            notes=self.grid.notes())
+            bpm=bpm,
+            time_signature=source.time_signature if source else "4/4",
+            keymap=list(source.keymap) if source else list(DEFAULT_KEYMAP),
+            notes=self.grid.notes(),
+            lyrics=[LyricLine(line.time_ms * lyric_scale, line.text)
+                    for line in source.lyrics]
+            if source else [],
+        )
 
     def _save(self, folder: Optional[Path] = None) -> str:
         name = self.name_edit.text().strip() or "未命名"
@@ -1027,6 +1040,7 @@ class EditorWindow(QWidget):
         path = folder / f"{score_id}.json"
         score.save(path)
         self._source_id = score_id
+        self._source_score = score
         print(f"[Editor] 已保存 {path}")
         self.saved.emit(score_id)
         return score_id
