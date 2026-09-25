@@ -9,8 +9,6 @@ from __future__ import annotations
 
 import sys
 
-from PySide6.QtWidgets import QApplication
-
 
 # ---------------------------------------------------------------- 崩溃日志
 # 打包时 console=False：程序一旦抛异常，用户看到的就是"没反应"，
@@ -117,16 +115,26 @@ def _configure_high_dpi() -> None:
 def main() -> int:
     _install_excepthook()       # 越早越好：AppController 构造期的崩溃也要留痕
     _configure_high_dpi()
+    from PySide6.QtWidgets import QApplication
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(True)
     app.setApplicationName("ManboHakimi-Harp")
 
     from harpguide.app import AppController
-    controller = AppController(app)
-
     if "--selftest" in sys.argv:
-        return _selftest(controller)
+        import tempfile
+        from pathlib import Path
+        import harpguide.config as config
 
+        with tempfile.TemporaryDirectory(prefix="harp_selftest_") as folder:
+            config._DATA_DIR_OVERRIDE = Path(folder)
+            try:
+                controller = AppController(app)
+                return _selftest(controller)
+            finally:
+                config._DATA_DIR_OVERRIDE = None
+
+    controller = AppController(app)
     _log_startup()
     controller.start()
     return app.exec()
@@ -139,7 +147,9 @@ def _selftest(controller) -> int:
     from pathlib import Path
 
     from PySide6.QtCore import QElapsedTimer, QEvent, QPointF, Qt
-    from PySide6.QtGui import QFontMetrics, QMouseEvent
+    from PySide6.QtGui import QFontMetrics, QIcon, QMouseEvent
+    from PySide6.QtWidgets import QApplication
+    from harpguide.config import data_dir
     from harpguide.jianpu import parse_jianpu
     from harpguide.models import NoteType, Score
 
@@ -147,7 +157,7 @@ def _selftest(controller) -> int:
     #    否则用户调过的 judge_offset_ms（例如 +220ms）会平移判定基准，
     #    让下面的"漏音 / 命中"断言全失去意义；同时也保证自检绝不改写用户配置。
     _real_settings_path = controller.settings._path
-    controller.settings._path = Path(tempfile.gettempdir()) / "harp_selftest_settings.json"
+    controller.settings._path = data_dir() / "config" / "selftest_settings.json"
     controller.settings.judge_offset_ms = 0
     controller.overlay.set_judge_offset(None)
     controller.panel.sync_offset_slider(0)
@@ -166,6 +176,10 @@ def _selftest(controller) -> int:
     assert _LEGACY_APP_NAME == "HarpGuide"
     assert __version__.startswith("0.15"), __version__
     assert data_dir().is_dir()                     # 数据目录可创建/可写
+    if getattr(sys, "frozen", False):
+        icon_path = Path(sys._MEIPASS) / "assets" / "icon.ico"
+        assert icon_path.is_file() and not QIcon(str(icon_path)).isNull(), \
+            "打包后托盘图标资源缺失"
     # 旧 %APPDATA%/HarpGuide 的数据应能被搬到新目录，且不覆盖新目录里已有的文件
     _mroot = Path(tempfile.mkdtemp())
     _old = _mroot / _LEGACY_APP_NAME
@@ -223,6 +237,16 @@ def _selftest(controller) -> int:
     assert HOTKEY_DEFS["transpose_natural"][1] == 0x62
     assert HOTKEY_DEFS["transpose_up"][1] == 0x63
     assert HOTKEY_DEFS["toggle_auto_transpose"][1] == 0x60   # 小键盘0 自动变调
+    # 游戏占用 F1-F4，四个基本操作统一放到未占用的小键盘区。
+    assert {name: HOTKEY_DEFS[name] for name in
+            ("toggle_playback", "reset", "toggle_visible", "toggle_ball")} == {
+                "toggle_playback": (0, 0x67),  # 小键盘7
+                "reset": (0, 0x68),            # 小键盘8
+                "toggle_visible": (0, 0x69),   # 小键盘9
+                "toggle_ball": (0, 0x6B),      # 小键盘+
+            }
+    assert not any(mods == 0 and 0x70 <= vk <= 0x73
+                   for mods, vk in HOTKEY_DEFS.values()), "不得占用游戏 F1-F4"
     # 切调状态
     controller._set_transpose(1)
     assert controller._transpose == 1
@@ -679,7 +703,7 @@ def _selftest(controller) -> int:
     panel.set_loop_status(*controller._loop_status())
     assert "A:" in panel.loop_status.text() and "B:" in panel.loop_status.text()
     assert abs(panel.a_spin.value() - controller._loop_status()[0]) < 0.01
-    panel.set_hotkey_warning(["F1 开始/暂停"])
+    panel.set_hotkey_warning(["小键盘7 开始/暂停"])
     assert not panel.warn_label.isHidden()
     panel.set_hotkey_warning([])
     assert panel.warn_label.isHidden()
@@ -1265,6 +1289,32 @@ def _selftest(controller) -> int:
         controller.settings.last_score_id = _orig_score.id
     ed.load_score(_orig_score)          # 编辑区还原成常规底稿
     print("[OK] 粘贴简谱（预检点名/全角归一/替换可撤销/追加整拍对齐）+ 曲库刷新（外部改动无缝换入）")
+
+    # 常用操作按钮：与热键走同一控制器逻辑，显示状态必须跟随引擎。
+    _actions = controller.overlay.actions
+    _was_overlay_visible = controller.overlay.isVisible()
+    _before_playing = controller.engine.playing
+    _actions.play_button.click()
+    assert controller.engine.playing != _before_playing
+    assert _actions.play_button.text() == ("暂停" if controller.engine.playing else "开始")
+    _actions.play_button.click()
+    assert controller.engine.playing == _before_playing
+    controller.engine.seek(600.0)
+    _actions.reset_button.click()
+    _reset_pos = (controller.engine.loop_range[0] if controller.engine.loop_range
+                  else controller.engine.start_ms())
+    assert abs(controller.engine.position_ms() - _reset_pos) < 1.0
+    controller.overlay.show()
+    _actions.ball_button.click()
+    assert controller._ball_mode and controller.ball.isVisible()
+    controller.show_overlay_mode()
+    _actions.hide_button.click()
+    assert controller._hidden and not controller.overlay.isVisible()
+    controller.toggle_visible()
+    assert controller.overlay.isVisible()
+    if not _was_overlay_visible:
+        controller.overlay.hide()
+    print("[OK] 基础操作按钮（播放状态 / 重置 / 悬浮球 / 隐藏与恢复）")
 
     # 块尾还原：引擎、设置、判定状态
     controller.settings.hit_feedback = _orig_fb

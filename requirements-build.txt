@@ -1,0 +1,4 @@
+# 在 requirements.txt 的运行依赖之外，固定打包工具版本。
+-r requirements.txt
+PyInstaller==6.22.2
+ruff==0.16.9
